@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
+from core.ui import render_summary_report
 from config.settings import LOG_DIR, cleanup_old_logs
 
 
@@ -88,18 +89,4 @@ class BaseJobRunner:
 
     def print_summary(self):
         """In bảng tóm tắt kết quả phiên chạy theo thiết kế hiện đại."""
-        s = self.stats
-        total = s["followed"] + s["liked"] + s["already"] + s["skipped"] + s["errors"]
-        plat_tag = f"SESSION REPORT ({self.platform_name.upper()})"
-
-        print(f"\n{CYAN}╭─ {WHITE}{plat_tag:<32}{CYAN} ─────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {GREEN}✓{RESET} Follow thành công   {GREEN}{s['followed']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {GREEN}♥{RESET} Like thành công     {GREEN}{s['liked']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}●{RESET} Đã thực hiện trước  {YELLOW}{s['already']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}↷{RESET} Đã bỏ qua           {YELLOW}{s['skipped']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {RED}!{RESET} Lỗi                 {RED}{s['errors']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}├────────────────────────────────────────────────────────────┤{RESET}")
-        print(f"{CYAN}│{RESET}  Tổng job xử lý       {WHITE}{total:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  Coin nhận được       {GREEN}~{s['coins_earned']:>6}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}\n")
-        self.log.info(f"File log chi tiết: {self.log_file}")
+        render_summary_report(self.platform_name, self.stats, self.log_file)

@@ -16,6 +16,15 @@ import re
 from typing import Dict, Any
 
 from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
+from core.ui import (
+    render_session_overview,
+    render_platform_menu,
+    render_job_type_menu,
+    HAS_RICH,
+    console,
+    box,
+    Panel,
+)
 
 # Đường dẫn thư mục gốc và file config
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -118,9 +127,23 @@ def cleanup_old_logs(days: int = 7):
 
 def interactive_configure(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """Trình hướng dẫn thiết lập cấu hình trực quan qua console."""
-    print(f"\n{CYAN}╭─ {WHITE}THIẾT LẬP CẤU HÌNH{CYAN} ─────────────────────────────────────╮{RESET}")
-    print(f"{CYAN}│{RESET}  Nhập giá trị mới hoặc nhấn {YELLOW}Enter{RESET} để giữ cấu hình hiện tại. {CYAN}│{RESET}")
-    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}\n")
+    if HAS_RICH and console:
+        console.print()
+        console.print(
+            Panel(
+                "[white]Nhập giá trị mới hoặc nhấn [bold yellow]Enter[/bold yellow] để giữ cấu hình hiện tại.[/white]",
+                title="[bold cyan]THIẾT LẬP CẤU HÌNH[/bold cyan]",
+                border_style="cyan",
+                box=box.ROUNDED,
+                expand=False,
+                padding=(0, 2),
+            )
+        )
+        console.print()
+    else:
+        print(f"\n{CYAN}╭─ {WHITE}THIẾT LẬP CẤU HÌNH{CYAN} ─────────────────────────────────────╮{RESET}")
+        print(f"{CYAN}│{RESET}  Nhập giá trị mới hoặc nhấn {YELLOW}Enter{RESET} để giữ cấu hình hiện tại. {CYAN}│{RESET}")
+        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}\n")
 
     # 1. Tài khoản F4F
     cur_u = cfg.get("f4f_user", "")
@@ -194,16 +217,7 @@ def check_or_prompt_credentials(cfg: Dict[str, Any]) -> Dict[str, Any]:
         return cfg
 
     if has_user and has_pass:
-        every_n = cfg.get("human_behavior_every_n_jobs", 5)
-        times = cfg.get("human_behavior_scroll_times", 2)
-        hb_desc = f"Cứ sau {every_n} jobs -> Lướt {times} video" if cfg.get("human_behavior", True) else "Tắt"
-
-        print(f"{CYAN}╭─ {WHITE}SESSION OVERVIEW{CYAN} ───────────────────────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}ACCOUNT{RESET}    {GREEN}{cfg['f4f_user']:<48}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}JOB MODE{RESET}   {WHITE}{cfg.get('job_type', 'all'):<48}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}JOB LIMIT{RESET}  {WHITE}{str(cfg.get('max_jobs_per_session', 50)):<8}{RESET}  {CYAN}DELAY{RESET}  {WHITE}{cfg.get('delay_min', 8)}-{cfg.get('delay_max', 18)}s{RESET}{' ' * 18}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}BROWSE{RESET}     {YELLOW}{hb_desc:<48}{CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+        render_session_overview(cfg)
 
         try:
             choice = input(f"{CYAN}›{RESET} {WHITE}Enter{RESET} = chạy ngay  {CYAN}|{RESET}  {YELLOW}2/c{RESET} = chỉnh cấu hình  {CYAN}» {RESET}").strip().lower()
@@ -228,10 +242,7 @@ def select_platform_menu(cfg: Dict[str, Any]) -> str:
     if not sys.stdin.isatty():
         return cfg.get("platform", "tiktok")
 
-    print(f"\n{CYAN}╭─ {WHITE}CHỌN NỀN TẢNG{CYAN} ─────────────────────────────────────────╮{RESET}")
-    print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}TikTok{RESET}      {CYAN}Follow tài khoản + Like video{RESET}             {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {GREEN}Instagram{RESET}  {CYAN}Follow trang cá nhân (+35 xu){RESET}            {CYAN}│{RESET}")
-    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+    render_platform_menu()
 
     cur_plat = cfg.get("platform", "tiktok").lower()
     def_num = "2" if ("ig" in cur_plat or "insta" in cur_plat) else "1"
@@ -260,20 +271,11 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
         "like": "like",
         "all": "all",
     }
-    type_labels = {
-        "follow": "1. Chỉ chạy Follow",
-        "like": "2. Chỉ chạy Like",
-        "all": "3. Kết hợp (Cả Follow & Like)",
-    }
 
     if not sys.stdin.isatty():
         return cfg.get("job_type", "all")
 
-    print(f"\n{CYAN}╭─ {WHITE}CHẾ ĐỘ JOB TIKTOK{CYAN} ──────────────────────────────────────╮{RESET}")
-    print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}FOLLOW ONLY{RESET}   {CYAN}Chỉ follow tài khoản{RESET}                   {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {WHITE}LIKE ONLY{RESET}     {CYAN}Chỉ like video{RESET}                         {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  {YELLOW}[3]{RESET}  {GREEN}MIXED MODE{RESET}    {CYAN}Kết hợp Follow + Like{RESET}                {CYAN}│{RESET}")
-    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+    render_job_type_menu()
 
     def_num = "3"
     if default_type == "follow":
@@ -289,9 +291,6 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
     except (EOFError, KeyboardInterrupt):
         print("\nĐã hủy.")
         sys.exit(0)
-
-    cfg["job_type"] = selected
-    return selected
 
     cfg["job_type"] = selected
     return selected

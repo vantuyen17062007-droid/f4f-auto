@@ -22,7 +22,8 @@ TIKTOK/
 ├── core/                        # Tầng lõi điều khiển phần cứng & tự động hóa
 │   ├── __init__.py
 │   ├── adb.py                   # AdbController: Điều khiển màn hình, click, swipe, intent
-│   └── helpers.py               # Tiện ích chung: Phân giải video ID, URL, thiết bị ADB, mã màu
+│   ├── helpers.py               # Tiện ích chung: Phân giải video ID, URL, thiết bị ADB, mã màu
+│   └── ui.py                    # Giao diện Rich UI: Banner, Session Overview, Table tài khoản, Report
 │
 ├── services/                    # Nghiệp vụ tự động hóa theo từng nền tảng
 │   ├── __init__.py
@@ -42,6 +43,7 @@ TIKTOK/
 ├── main.py                      # 🚀 ENTRYPOINT CHÍNH (Điều phối chạy toàn bộ tool)
 │
 ├── .gitignore                   # Chặn file nhạy cảm (config.json, logs, ảnh tạm)
+├── requirements.txt             # Danh sách thư viện Python cần thiết (requests, rich)
 └── README.md                    # Tài liệu hướng dẫn sử dụng
 ```
 
@@ -49,27 +51,32 @@ TIKTOK/
 
 ## 🌟 Tính Năng Nổi Bật
 
-1. **Hỗ Trợ Đa Nền Tảng (TikTok & Instagram):**
+1. **Giao Diện Terminal Hiện Đại (Rich UI):**
+   - Thiết kế chuẩn công thái học với khung viền bo cong (`rounded`), phối màu gradient dịu mắt.
+   - Bảng tổng quan phiên chạy (`Session Overview`), menu lựa chọn nền tảng, bảng danh sách tài khoản liên kết (`Rich Table`).
+   - Báo cáo kết quả kết thúc phiên (`Session Report`) chi tiết kèm thống kê số xu kiếm được.
+   - Tự động fallback mượt mà về ANSI nếu môi trường chưa cài `rich`.
+2. **Hỗ Trợ Đa Nền Tảng (TikTok & Instagram):**
    - **TikTok**: Tự động làm job **Follow** trang cá nhân và job **Like video** (hoặc chạy kết hợp cả hai).
    - **Instagram**: Tự động làm job **Follow** trang cá nhân kiếm **+35 xu/job**.
-2. **Hợp Nhất API Toàn Diện (`api/f4f_client.py`):**
+3. **Hợp Nhất API Toàn Diện (`api/f4f_client.py`):**
    - Tích hợp chuẩn API của **TikTok**, **Instagram**, và **Facebook**.
    - Tự động sinh chữ ký bảo mật **HMAC SHA256** và quản lý token phiên.
    - Hỗ trợ lấy nick, lấy job, báo cáo hoàn thành job (`complete-job`) và tự động bỏ qua job lỗi (`skip-job`).
-3. **Cơ Chế Điều Khiển ADB & UI Thông Minh (`core/adb.py`):**
+4. **Cơ Chế Điều Khiển ADB & UI Thông Minh (`core/adb.py`):**
    - Mở thẳng trang cá nhân / video qua Android Intent / DeepLinkActivity.
    - Nhận diện chính xác nút Follow (`profile_header_follow_button` trên Instagram, anchor `Nhắn tin` trên TikTok).
    - Tự động kiểm tra trạng thái trước và sau khi tương tác để tránh bị click trùng lặp.
    - Tự động đóng các popup phiền toái (đồng bộ danh bạ, bật thông báo...).
-4. **Cấu Hình Tương Tác Trực Tiếp Qua Terminal:**
+5. **Cấu Hình Tương Tác Trực Tiếp Qua Terminal:**
    - Không cần mở file `config.json` ra sửa thủ công.
    - Khi khởi động `main.py`, tool hiện bảng tóm tắt:
      - Nhấn **Enter (hoặc 1)**: Chạy ngay với cấu hình trước đó.
      - Nhấn **2 (hoặc `c`)**: Trình wizard hỏi trực tiếp từng thông số (tài khoản, số job, delay, anti-ban).
-5. **Mô Phỏng Người Thật (Anti-Ban / Checkpoint):**
+6. **Mô Phỏng Người Thật (Anti-Ban / Checkpoint):**
    - Tùy chỉnh tần suất lướt feed (`human_behavior_every_n_jobs`: sau bao nhiêu job thì lướt feed 1 lần).
    - Tùy chỉnh số video lướt mỗi lần (`human_behavior_scroll_times`).
-6. **Đa Nền Tảng Chạy Được Trên PC Lẫn Điện Thoại:**
+7. **Đa Nền Tảng Chạy Được Trên PC Lẫn Điện Thoại:**
    - Hỗ trợ Windows, Linux, macOS.
    - Hỗ trợ chạy trực tiếp trong ứng dụng **Termux** trên điện thoại Android qua Local ADB.
 
@@ -79,7 +86,7 @@ TIKTOK/
 
 ### 1. Cài Đặt Thư Viện Cần Thiết:
 ```bash
-pip install requests uiautomator2 lxml
+pip install -r requirements.txt
 ```
 
 ### 2. Kết Nối Điện Thoại:

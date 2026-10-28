@@ -15,6 +15,7 @@ import random
 from typing import Optional, Dict, Any, List
 
 from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
+from core.ui import render_accounts_table
 from core.adb import AdbController
 from api.f4f_client import ApiF4F
 from services.base_runner import BaseJobRunner
@@ -70,14 +71,7 @@ class TikTokJobRunner(BaseJobRunner):
             self.log.info(f"{GREEN}✓ Đang dùng tài khoản TikTok:{RESET} {CYAN}@{self.account_name}{RESET} (ID: {self.account_id})")
             return
 
-        print(f"\n{CYAN}╭─ {WHITE}TÀI KHOẢN TIKTOK ĐÃ LIÊN KẾT{CYAN} ───────────────────────────╮{RESET}")
-        for idx, acc in enumerate(acc_list, start=1):
-            status = acc.get("status", "Hoạt động")
-            name = acc.get("name", "")
-            acc_id = acc.get("id", "")
-            is_def = f" {GREEN}(Mặc định){RESET}" if idx == default_idx else ""
-            print(f"{CYAN}│{RESET}  {YELLOW}[{idx:02}]{RESET}  {WHITE}@{name:<24}{RESET} {CYAN}ID:{RESET} {acc_id:<8} {CYAN}•{RESET} {status:<12}{is_def} {CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────────╯{RESET}")
+        render_accounts_table("TikTok", acc_list, default_idx)
 
         def_name = acc_list[default_idx - 1]["name"]
         prompt_txt = f"{CYAN}›{RESET} Chọn tài khoản [1-{len(acc_list)}] {CYAN}(Enter = @{def_name}){RESET}: "
