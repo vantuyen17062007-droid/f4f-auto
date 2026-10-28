@@ -21,9 +21,9 @@ from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_DIR = os.path.dirname(__file__)
 
-# Ưu tiên config/config.json nếu có, nếu không dùng config.json ở thư mục gốc
-PRIMARY_CONFIG_PATH = os.path.join(ROOT_DIR, "config.json")
-FALLBACK_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+# Ưu tiên config/config.json, nếu không tìm thấy sẽ kiểm tra config.json ở thư mục gốc
+PRIMARY_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+FALLBACK_CONFIG_PATH = os.path.join(ROOT_DIR, "config.json")
 
 LOG_DIR = os.path.join(ROOT_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
