@@ -254,18 +254,25 @@ class TikTokJobRunner(BaseJobRunner):
         self._skip(job, f"like_state_{state}")
         return "skipped"
 
-    def _complete(self, job_id: int, reward: int, type_job: str = "follow"):
-        """Gửi API báo cáo hoàn thành job lên F4F."""
-        try:
-            res = self.api.complete_job_api("tiktok", job_id, self.account_id, type_job=type_job)
-            earned = int(res.get("data", {}).get("coin_received") or reward)
-            self.stats["coins_earned"] += earned
-            self.log.info(f"  {GREEN}💰 Nhận thành công +{earned} coin! (Tổng kiếm: ~{self.stats['coins_earned']} coin){RESET}")
-        except Exception as e:
-            self.log.error(f"  {RED}[!] Lỗi báo cáo complete-job: {e}{RESET}")
-            if "400" in str(e):
-                self.log.warning("  -> Server F4F báo lỗi 400 (chưa làm/không nhận diện) -> Tự động skip job.")
-                self.api.skip_job_api("tiktok", job_id, self.account_id, self.account_name, str(job_id))
+    def _complete(self, job_id: int, reward: int, type_job: str = "follow", retries: int = 1):
+        """Gửi API báo cáo hoàn thành job lên F4F (hỗ trợ thử lại nếu server trễ đồng bộ)."""
+        for attempt in range(retries + 1):
+            try:
+                res = self.api.complete_job_api("tiktok", job_id, self.account_id, type_job=type_job)
+                earned = int(res.get("data", {}).get("coin_received") or reward)
+                self.stats["coins_earned"] += earned
+                self.log.info(f"  {GREEN}💰 Nhận thành công +{earned} coin! (Tổng kiếm: ~{self.stats['coins_earned']} coin){RESET}")
+                return True
+            except Exception as e:
+                if "400" in str(e) and attempt < retries:
+                    self.log.warning("  -> Server F4F đang đồng bộ dữ liệu TikTok, thử lại sau 3.5s...")
+                    time.sleep(3.5)
+                    continue
+                self.log.error(f"  {RED}[!] Lỗi báo cáo complete-job: {e}{RESET}")
+                if "400" in str(e):
+                    self.log.warning("  -> Server F4F vẫn báo lỗi 400 sau khi thử lại -> Tự động bỏ qua job.")
+                    self.api.skip_job_tiktok(job_id, self.account_id, self.account_name, str(job_id))
+                return False
 
     def _skip(self, job: Dict[str, Any], reason: str = ""):
         """Gửi API skip job lên F4F."""

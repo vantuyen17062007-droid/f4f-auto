@@ -203,18 +203,28 @@ def interactive_configure(cfg: Dict[str, Any]) -> Dict[str, Any]:
         if val_times.isdigit() and int(val_times) > 0:
             cfg["human_behavior_scroll_times"] = int(val_times)
 
+    # 6. Lựa chọn nền tảng & chế độ job
+    cur_plat = select_platform_menu(cfg)
+    if cur_plat == "tiktok":
+        select_job_type_menu(cfg)
+
     save_config(cfg)
     print(f"\n{GREEN}✓ Đã lưu toàn bộ cấu hình vào config.json!{RESET}\n")
     return cfg
 
 
-def check_or_prompt_credentials(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """Kiểm tra và cho phép chỉnh sửa cấu hình trực tiếp từ terminal."""
+def check_or_prompt_credentials(cfg: Dict[str, Any]) -> tuple[Dict[str, Any], bool]:
+    """
+    Kiểm tra và cho phép chỉnh sửa cấu hình trực tiếp từ terminal.
+    Trả về: (cfg, quick_start)
+      - quick_start = True: người dùng bấm Enter tại bảng Overview để chạy ngay
+      - quick_start = False: người dùng vừa chỉnh sửa hoặc cấu hình lần đầu
+    """
     has_user = bool(cfg.get("f4f_user") and cfg["f4f_user"] not in ("your_f4f_username", ""))
     has_pass = bool(cfg.get("f4f_pass") and cfg["f4f_pass"] not in ("your_f4f_password", ""))
 
     if not sys.stdin.isatty():
-        return cfg
+        return cfg, True
 
     if has_user and has_pass:
         render_session_overview(cfg)
@@ -223,10 +233,11 @@ def check_or_prompt_credentials(cfg: Dict[str, Any]) -> Dict[str, Any]:
             choice = input(f"{CYAN}›{RESET} {WHITE}Enter{RESET} = chạy ngay  {CYAN}|{RESET}  {YELLOW}2/c{RESET} = chỉnh cấu hình  {CYAN}» {RESET}").strip().lower()
             if choice in ("2", "c", "edit", "config", "s", "sua", "y", "yes"):
                 cfg = interactive_configure(cfg)
+                return cfg, False
+            return cfg, True
         except (EOFError, KeyboardInterrupt):
             print("\nĐã hủy.")
             sys.exit(0)
-        return cfg
 
     print(f"{YELLOW}[!] Chưa có thông tin tài khoản follow4follow.{RESET}")
     try:
@@ -234,7 +245,7 @@ def check_or_prompt_credentials(cfg: Dict[str, Any]) -> Dict[str, Any]:
     except (EOFError, KeyboardInterrupt):
         print("\nĐã hủy.")
         sys.exit(0)
-    return cfg
+    return cfg, False
 
 
 def select_platform_menu(cfg: Dict[str, Any]) -> str:
@@ -251,10 +262,12 @@ def select_platform_menu(cfg: Dict[str, Any]) -> str:
         choice = input(f"{CYAN}›{RESET} Chọn [1/2] {CYAN}(Enter = {def_num}){RESET}: ").strip().lower()
         if choice in ("2", "ig", "insta", "instagram"):
             cfg["platform"] = "instagram"
-            return "instagram"
+            selected = "instagram"
         else:
             cfg["platform"] = "tiktok"
-            return "tiktok"
+            selected = "tiktok"
+        save_config(cfg)
+        return selected
     except (EOFError, KeyboardInterrupt):
         print("\nĐã hủy.")
         sys.exit(0)
@@ -288,9 +301,9 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
             f"{CYAN}›{RESET} Chọn chế độ [1/2/3] {CYAN}(Enter = {def_num}){RESET}: "
         ).strip().lower()
         selected = type_map.get(choice, default_type if not choice else "all")
+        cfg["job_type"] = selected
+        save_config(cfg)
+        return selected
     except (EOFError, KeyboardInterrupt):
         print("\nĐã hủy.")
         sys.exit(0)
-
-    cfg["job_type"] = selected
-    return selected

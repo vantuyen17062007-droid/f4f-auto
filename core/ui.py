@@ -73,7 +73,8 @@ def print_banner():
 def render_session_overview(cfg: Dict[str, Any]):
     """Hiển thị bảng tóm tắt cấu hình hiện tại trước khi bắt đầu."""
     user = cfg.get("f4f_user", "N/A")
-    job_mode = cfg.get("job_type", "all")
+    plat = cfg.get("platform", "tiktok").upper()
+    job_mode = cfg.get("job_type", "all").upper() if plat == "TIKTOK" else "FOLLOW (+35 XU)"
     max_jobs = str(cfg.get("max_jobs_per_session", 50))
     delay_str = f"{cfg.get('delay_min', 8)}-{cfg.get('delay_max', 18)}s"
 
@@ -87,7 +88,7 @@ def render_session_overview(cfg: Dict[str, Any]):
         grid.add_column(style="white")
 
         grid.add_row("ACCOUNT", f"[bold green]{user}[/bold green]")
-        grid.add_row("JOB MODE", f"[bold white]{job_mode}[/bold white]")
+        grid.add_row("PLATFORM", f"[bold yellow]{plat}[/bold yellow]   [bold cyan]MODE[/bold cyan]  [bold white]{job_mode}[/bold white]")
         grid.add_row("JOB LIMIT", f"[bold yellow]{max_jobs} jobs[/bold yellow]   [bold cyan]DELAY[/bold cyan]  [bold white]{delay_str}[/bold white]")
         grid.add_row("ANTI-BAN", f"[italic yellow]{hb_desc}[/italic yellow]")
 
@@ -103,7 +104,7 @@ def render_session_overview(cfg: Dict[str, Any]):
     else:
         print(f"{CYAN}╭─ {WHITE}SESSION OVERVIEW{CYAN} ───────────────────────────────────────╮{RESET}")
         print(f"{CYAN}│{RESET}  {CYAN}ACCOUNT{RESET}    {GREEN}{user:<48}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}JOB MODE{RESET}   {WHITE}{job_mode:<48}{CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}  {CYAN}PLATFORM{RESET}   {YELLOW}{plat:<16}{RESET}{CYAN}MODE{RESET}   {WHITE}{job_mode:<23}{CYAN}│{RESET}")
         print(f"{CYAN}│{RESET}  {CYAN}JOB LIMIT{RESET}  {WHITE}{max_jobs:<8}{RESET}  {CYAN}DELAY{RESET}  {WHITE}{delay_str}{RESET}{' ' * 18}{CYAN}│{RESET}")
         print(f"{CYAN}│{RESET}  {CYAN}BROWSE{RESET}     {YELLOW}{hb_desc:<48}{CYAN}│{RESET}")
         print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")

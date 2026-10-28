@@ -16,7 +16,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from core.helpers import print_banner, YELLOW, RED, RESET
+from core.helpers import YELLOW, RED, RESET
+from core.ui import print_banner
 from config.settings import (
     load_config,
     check_or_prompt_credentials,
@@ -32,16 +33,16 @@ def main():
 
     # 1. Tải & kiểm tra cấu hình
     cfg = load_config()
-    cfg = check_or_prompt_credentials(cfg)
+    cfg, quick_start = check_or_prompt_credentials(cfg)
 
-    # 2. Chọn nền tảng kiếm coin
-    platform = select_platform_menu(cfg)
+    # 2. Xác định nền tảng chạy
+    platform = cfg.get("platform", "tiktok").lower()
 
     # 3. Khởi tạo service theo nền tảng
     if platform == "instagram":
         runner = InstagramJobRunner(config=cfg)
     else:
-        job_type = select_job_type_menu(cfg)
+        job_type = cfg.get("job_type", "all")
         runner = TikTokJobRunner(config=cfg, job_type=job_type)
 
     # 4. Thực thi phiên làm việc

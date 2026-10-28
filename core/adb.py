@@ -545,13 +545,22 @@ class AdbController:
         return "click_unverified"
 
     # ── HÀNH VI NGƯỜI THẬT (HUMAN BEHAVIOR / ANTI-BAN) ─────────────────
-    def simulate_human_browse(self, scroll_times=1):
+    def simulate_human_browse(self, scroll_times=1, package_name: Optional[str] = None):
         """Mô phỏng hành vi người dùng lướt feed n lần trước khi làm job mới."""
         if scroll_times <= 0:
             return
         try:
             self.back()
             time.sleep(1.0)
+
+            # Đảm bảo app mục tiêu vẫn đang ở tiền cảnh, nếu thoát ra Home thì mở lại
+            if package_name:
+                current = self.shell("dumpsys window | grep mCurrentFocus")
+                if package_name not in current:
+                    self.shell(f"monkey -p {package_name} -c android.intent.category.LAUNCHER 1")
+                    time.sleep(2.0)
+                    self.dismiss_popups(package=package_name)
+
             w, h = self.get_screen_size()
             x = w // 2
             for _ in range(scroll_times):

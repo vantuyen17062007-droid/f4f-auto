@@ -76,7 +76,7 @@ class BaseJobRunner:
                 f"  {CYAN}☕ [Anti-Ban] Đã xử lý {self.jobs_since_human} job(s) -> "
                 f"Lướt feed {scroll_times} lần...{RESET}"
             )
-            self.adb.simulate_human_browse(scroll_times=scroll_times)
+            self.adb.simulate_human_browse(scroll_times=scroll_times, package_name=self.package_name)
             self.jobs_since_human = 0
 
     def sleep_delay(self):

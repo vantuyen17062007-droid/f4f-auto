@@ -213,6 +213,26 @@ class ApiF4F:
         }
         return self._req("POST", "/user/earn-coin/skip-job", json=payload)
 
+    def skip_job_ig(
+        self,
+        job_id: Union[int, str],
+        account_id: Union[int, str],
+        username: str,
+        object_id: str,
+    ) -> Dict[str, Any]:
+        """Bỏ qua job Instagram không hợp lệ hoặc bị lỗi."""
+        return self.skip_job_api("instagram", job_id, account_id, username, object_id)
+
+    def skip_job_tiktok(
+        self,
+        job_id: Union[int, str],
+        account_id: Union[int, str],
+        uid: str,
+        object_id: str,
+    ) -> Dict[str, Any]:
+        """Bỏ qua job TikTok không hợp lệ hoặc bị lỗi."""
+        return self.skip_job_api("tiktok", job_id, account_id, uid, object_id)
+
     def skip_job(
         self,
         arg1: Union[str, int],

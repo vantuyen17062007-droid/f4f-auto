@@ -32,9 +32,6 @@ DIM = "\033[2m"
 RESET = "\033[0m"
 
 
-from core.ui import print_banner, console
-
-
 def get_connected_devices() -> List[str]:
     """Lấy danh sách các thiết bị ADB đang kết nối ở trạng thái 'device'."""
     try:
