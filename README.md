@@ -3,108 +3,178 @@
 
 ---
 
-## 🌟 Tính năng nổi bật đã tối ưu
-1. **Hỗ trợ đa nền tảng (TikTok & Instagram):**
-   - Hỗ trợ chạy tự động cả **TikTok** (Follow & Like video) lẫn **Instagram** (Follow kiếm +35 xu/job).
-   - Menu chọn nền tảng trực quan ngay khi khởi động `main.py` hoặc chạy riêng file `instagram_runner.py`.
-2. **Hợp nhất API toàn diện (`api_f4f.py`):**
-   - Một file API duy nhất tích hợp cả 3 nền tảng: **TikTok**, **Instagram**, và **Facebook**.
-   - Hỗ trợ đầy đủ: lấy danh sách nick, lấy job kiếm coin, báo cáo hoàn thành job, và skip job lỗi.
-3. **Cơ chế Like video & Follow thông minh:**
-   - Mở thẳng trang cá nhân / video bằng Intent / Deeplink Activity chuẩn.
-   - Tự động nhận diện chính xác nút Follow (`profile_header_follow_button` trên Instagram, anchor `Nhắn tin` trên TikTok).
-   - Tự động kiểm tra trạng thái: nếu đã follow / liked từ trước sẽ không thao tác lại.
-4. **Tự động nhận diện tài khoản (`get_acc`):**
-   - Không cần nhập thủ công UID hay username!
-   - Tool tự động gọi API F4F lấy danh sách tài khoản liên kết (TikTok/Instagram).
-   - Tự động chọn nếu có 1 tài khoản, hoặc hiển thị menu chọn nhanh bằng số nếu có nhiều tài khoản.
-5. **Cấu hình trực tiếp trên Terminal khi khởi động:**
-   - Khi chạy `python main.py`, tool hiển thị cấu hình hiện tại và cho phép bấm Enter chạy ngay hoặc gõ `2` để tùy chỉnh thông số.
-6. **Mô phỏng người thật linh hoạt (Anti-Ban / Checkpoint):**
-   - Tùy chỉnh tần suất lướt feed (`human_behavior_every_n_jobs`: sau bao nhiêu job thì lướt feed 1 lần).
-   - Tùy chỉnh số lần lướt feed (`human_behavior_scroll_times`).
-7. **Auto-Detect Thiết bị & Package:**
-   - Tự động tìm thiết bị ADB đang kết nối (USB hoặc Wifi ADB).
-   - Tự động nhận diện bản TikTok (`com.ss.android.ugc.trill`, `com.zhiliaoapp.musically`, ...) và Instagram (`com.instagram.android`, `com.instagram.lite`).
-8. **Tự động tắt Popup & Dọn dẹp Log:**
-   - Bấm bỏ qua popup phiền toái và tự động dọn log cũ hơn 7 ngày.
+## 📁 Cấu Trúc Thư Mục Dự Án (Project Architecture)
+
+Dự án được tái cấu trúc theo chuẩn Python chuyên nghiệp, module hóa rõ ràng:
+
+```text
+TIKTOK/
+├── config/                      # Quản lý cấu hình tập trung
+│   ├── __init__.py
+│   ├── settings.py              # Tải, lưu, wizard tương tác terminal & dọn log
+│   ├── config.example.json      # File mẫu cấu hình tham khảo
+│   └── config.json              # File cấu hình thực tế (được .gitignore bảo vệ)
+│
+├── api/                         # Giao tiếp API các bên thứ 3 (F4F)
+│   ├── __init__.py
+│   └── f4f_client.py            # ApiF4F: HMAC SHA256 & Client đa nền tảng (TikTok, IG, FB)
+│
+├── core/                        # Tầng lõi điều khiển phần cứng & tự động hóa
+│   ├── __init__.py
+│   ├── adb.py                   # AdbController: Điều khiển màn hình, click, swipe, intent
+│   └── helpers.py               # Tiện ích chung: Phân giải video ID, URL, thiết bị ADB, mã màu
+│
+├── services/                    # Nghiệp vụ tự động hóa theo từng nền tảng
+│   ├── __init__.py
+│   ├── base_runner.py           # BaseJobRunner: Theo dõi thống kê, delay ngẫu nhiên, anti-ban
+│   ├── tiktok_service.py        # TikTokJobRunner: Nghiệp vụ Follow & Like video TikTok
+│   └── instagram_service.py     # InstagramJobRunner: Nghiệp vụ Follow Instagram
+│
+├── tools/                       # Các công cụ kiểm thử & CLI độc lập
+│   ├── __init__.py
+│   ├── test_tiktok.py           # Test nhanh 1 job TikTok
+│   ├── test_instagram.py        # Test nhanh 1 job Instagram
+│   ├── like_video_cli.py        # Tool CLI like video trực tiếp theo URL/ID
+│   └── find_video_cli.py        # Tool CLI trích xuất Video ID TikTok
+│
+├── logs/                        # Lưu trữ file log phiên chạy (tự động dọn sau 7 ngày)
+│
+├── main.py                      # 🚀 ENTRYPOINT CHÍNH (Điều phối chạy toàn bộ tool)
+│
+├── .gitignore                   # Chặn file nhạy cảm (config.json, logs, ảnh tạm)
+└── README.md                    # Tài liệu hướng dẫn sử dụng
+```
 
 ---
 
-## 🖥️ Hướng dẫn chạy trên MÁY TÍNH (PC)
+## 🌟 Tính Năng Nổi Bật
 
-### 1. Cài đặt thư viện:
+1. **Hỗ Trợ Đa Nền Tảng (TikTok & Instagram):**
+   - **TikTok**: Tự động làm job **Follow** trang cá nhân và job **Like video** (hoặc chạy kết hợp cả hai).
+   - **Instagram**: Tự động làm job **Follow** trang cá nhân kiếm **+35 xu/job**.
+2. **Hợp Nhất API Toàn Diện (`api/f4f_client.py`):**
+   - Tích hợp chuẩn API của **TikTok**, **Instagram**, và **Facebook**.
+   - Tự động sinh chữ ký bảo mật **HMAC SHA256** và quản lý token phiên.
+   - Hỗ trợ lấy nick, lấy job, báo cáo hoàn thành job (`complete-job`) và tự động bỏ qua job lỗi (`skip-job`).
+3. **Cơ Chế Điều Khiển ADB & UI Thông Minh (`core/adb.py`):**
+   - Mở thẳng trang cá nhân / video qua Android Intent / DeepLinkActivity.
+   - Nhận diện chính xác nút Follow (`profile_header_follow_button` trên Instagram, anchor `Nhắn tin` trên TikTok).
+   - Tự động kiểm tra trạng thái trước và sau khi tương tác để tránh bị click trùng lặp.
+   - Tự động đóng các popup phiền toái (đồng bộ danh bạ, bật thông báo...).
+4. **Cấu Hình Tương Tác Trực Tiếp Qua Terminal:**
+   - Không cần mở file `config.json` ra sửa thủ công.
+   - Khi khởi động `main.py`, tool hiện bảng tóm tắt:
+     - Nhấn **Enter (hoặc 1)**: Chạy ngay với cấu hình trước đó.
+     - Nhấn **2 (hoặc `c`)**: Trình wizard hỏi trực tiếp từng thông số (tài khoản, số job, delay, anti-ban).
+5. **Mô Phỏng Người Thật (Anti-Ban / Checkpoint):**
+   - Tùy chỉnh tần suất lướt feed (`human_behavior_every_n_jobs`: sau bao nhiêu job thì lướt feed 1 lần).
+   - Tùy chỉnh số video lướt mỗi lần (`human_behavior_scroll_times`).
+6. **Đa Nền Tảng Chạy Được Trên PC Lẫn Điện Thoại:**
+   - Hỗ trợ Windows, Linux, macOS.
+   - Hỗ trợ chạy trực tiếp trong ứng dụng **Termux** trên điện thoại Android qua Local ADB.
+
+---
+
+## 🖥️ Hướng Dẫn Chạy Trên MÁY TÍNH (PC)
+
+### 1. Cài Đặt Thư Viện Cần Thiết:
 ```bash
 pip install requests uiautomator2 lxml
 ```
 
-### 2. Chỉnh sửa cấu hình (Tùy chọn):
-- Mở file `config.json` và điền tài khoản, mật khẩu f4f của bạn.
-- Bạn có thể chỉnh `human_behavior_every_n_jobs` (ví dụ cứ 5 job lướt 1 lần) và `human_behavior_scroll_times` (lướt 2 video).
-
-### 3. Kết nối điện thoại & Khởi chạy:
-- Bật **Gỡ lỗi USB (USB Debugging)** trên điện thoại và cắm cáp vào máy tính (hoặc kết nối qua Wifi ADB).
-- Chạy lệnh:
+### 2. Kết Nối Điện Thoại:
+- Bật **Gỡ lỗi USB (USB Debugging)** trên điện thoại và cắm cáp kết nối vào máy tính (hoặc kết nối qua Wifi ADB).
+- Kiểm tra thiết bị đã nhận diện:
   ```bash
-  python main.py
+  adb devices
   ```
-- Tool sẽ tự động đọc `config.json`, tự đăng nhập, kết nối ADB và chạy tự động hoàn toàn!
+
+### 3. Khởi Chạy Tool:
+```bash
+python main.py
+```
+- Tool sẽ hiển thị menu chọn nền tảng:
+  - Bấm `1`: Chạy TikTok (chọn tiếp Follow / Like / Cả hai).
+  - Bấm `2`: Chạy Instagram (+35 xu/job).
 
 ---
 
-## 📱 Hướng dẫn chạy TRỰC TIẾP TRÊN ĐIỆN THOẠI (Termux)
+## 📱 Hướng Dẫn Chạy Trực Tiếp Trên ĐIỆN THOẠI (Termux)
 
-Bạn có thể chạy tool độc lập ngay trên chính chiếc điện thoại Android bằng ứng dụng **Termux** mà không cần bật máy tính.
+Bạn có thể chạy tool độc lập ngay trên chính chiếc điện thoại Android bằng **Termux** mà không cần máy tính.
 
-### 1. Cài đặt môi trường trên Termux:
-Mở Termux và chạy các lệnh sau:
+### 1. Cài Đặt Môi Trường Trên Termux:
 ```bash
 pkg update && pkg upgrade -y
 pkg install python android-tools git libxml2 libxslt -y
 pip install requests uiautomator2 lxml
 ```
 
-### 2. Kích hoạt kết nối ADB cục bộ (Local ADB):
-Trên Android 11 trở lên:
+### 2. Kích Hoạt Kết Nối ADB Cục Bộ (Local Wireless ADB):
+*Dành cho Android 11 trở lên:*
 1. Vào **Cài đặt cho nhà phát triển** -> Bật **Gỡ lỗi không dây (Wireless debugging)**.
 2. Bấm vào mục Gỡ lỗi không dây -> Chọn **Ghép nối thiết bị bằng mã ghép nối (Pair with pairing code)**.
 3. Mở Termux và gõ:
    ```bash
    adb pair 127.0.0.1:<PORT_GHÉP_NỐI>
    ```
-   (Nhập mã PIN hiển thị trên màn hình).
+   *(Nhập mã PIN 6 số hiển thị trên màn hình)*.
 4. Sau khi ghép nối thành công, kết nối ADB:
    ```bash
    adb connect 127.0.0.1:<PORT_KẾT_NỐI>
    ```
 
-### 3. Chạy tool trên Termux:
-Chuyển vào thư mục chứa code và chạy:
+### 3. Khởi Chạy Tool:
 ```bash
 python main.py
 ```
-*(Tool sẽ tự động nhận diện kết nối `127.0.0.1` và chạy hoàn toàn tự động)*.
 
 ---
 
-## ⚙️ Cấu trúc file `config.json`
+## 🛠️ Các Công Cụ Tiện Ích Độc Lập (`tools/`)
+
+Ngoài file chạy chính `main.py`, bạn có thể dùng các công cụ độc lập:
+
+1. **Test 1 job TikTok:**
+   ```bash
+   python tools/test_tiktok.py
+   ```
+2. **Test 1 job Instagram:**
+   ```bash
+   python tools/test_instagram.py
+   ```
+3. **Like video TikTok trực tiếp qua link:**
+   ```bash
+   python tools/like_video_cli.py --url https://vt.tiktok.com/ZS.../
+   ```
+4. **Phân giải Video ID TikTok:**
+   ```bash
+   python tools/find_video_cli.py --url https://www.tiktok.com/@user/video/123456789
+   ```
+
+---
+
+## ⚙️ Cấu Trúc File `config/config.json`
 
 ```json
 {
   "f4f_user": "your_f4f_username",        // Tài khoản follow4follow.net
-  "f4f_pass": "your_f4f_password",        // Mật khẩu follow4follow
-  "tiktok_uid": "",                      // Để trống để tự chọn nick TikTok qua get_acc_tik
-  "job_type": "all",                     // "all" (cả hai), "follow" (chỉ follow), hoặc "like" (chỉ like)
-  "adb_serial": "auto",                  // "auto" hoặc IP cụ thể
-  "tiktok_package": "auto",              // "auto" (tự chọn TikTok phù hợp)
-  "max_jobs_per_session": 50,            // Số job tối đa trong 1 lần chạy
-  "delay_min": 8,                        // Nghỉ tối thiểu giữa các job (giây)
-  "delay_max": 18,                       // Nghỉ tối đa giữa các job (giây)
-  "profile_load_timeout": 8,             // Thời gian chờ load profile
-  "verify_timeout": 3,                   // Thời gian xác thực trạng thái follow
-  "human_behavior": true,                // Bật mô phỏng lướt feed chống ban
-  "human_behavior_every_n_jobs": 5,      // Chạy sau bao nhiêu job thì lướt video
+  "f4f_pass": "your_f4f_password",        // Mật khẩu follow4follow.net
+  "platform": "tiktok",                  // "tiktok" hoặc "instagram"
+  "tiktok_uid": "",                      // Để trống để tự động chọn nick qua API
+  "instagram_username": "",              // Để trống để tự động chọn nick qua API
+  "job_type": "all",                     // TikTok: "all", "follow", hoặc "like"
+  "adb_serial": "auto",                  // "auto" hoặc serial/IP cụ thể
+  "tiktok_package": "auto",              // "auto" (tự nhận diện com.ss.android.ugc.trill...)
+  "instagram_package": "auto",           // "auto" (tự nhận diện com.instagram.android...)
+  "max_jobs_per_session": 50,            // Số job tối đa trong 1 phiên chạy
+  "delay_min": 8,                        // Nghỉ ngẫu nhiên tối thiểu (giây)
+  "delay_max": 18,                       // Nghỉ ngẫu nhiên tối đa (giây)
+  "profile_load_timeout": 8,             // Thời gian chờ tải trang cá nhân
+  "verify_timeout": 3,                   // Thời gian xác thực nút sau khi click
+  "human_behavior": true,                // Bật chế độ lướt feed chống ban
+  "human_behavior_every_n_jobs": 5,      // Sau bao nhiêu job thì lướt feed 1 lần
   "human_behavior_scroll_times": 2,      // Mỗi lần lướt bao nhiêu video
-  "auto_clean_logs_days": 7              // Tự xóa file log cũ hơn 7 ngày
+  "auto_clean_logs_days": 7              // Tự xóa file log cũ hơn N ngày
 }
 ```
