@@ -61,18 +61,18 @@ class InstagramJobRunner(BaseJobRunner):
                 default_idx = idx
                 break
 
-        print(f"\n{CYAN}┌── Danh sách tài khoản Instagram liên kết ──────────────────────┐{RESET}")
+        print(f"\n{CYAN}╭─ {WHITE}TÀI KHOẢN INSTAGRAM ĐÃ LIÊN KẾT{CYAN} ─────────────────────────╮{RESET}")
         for idx, acc in enumerate(acc_list, start=1):
             name = acc.get("username") or acc.get("name")
             acc_id = acc.get("id")
             is_def = f" {GREEN}(Mặc định){RESET}" if idx == default_idx else ""
-            print(f"{CYAN}│{RESET}  [{idx}] {WHITE}@{name:<22}{RESET} │ ID: {acc_id:<6} {is_def} {CYAN}│{RESET}")
-        print(f"{CYAN}└────────────────────────────────────────────────────────────────┘{RESET}")
+            print(f"{CYAN}│{RESET}  {YELLOW}[{idx:02}]{RESET}  {WHITE}@{name:<24}{RESET} {CYAN}ID:{RESET} {acc_id:<8}{is_def} {CYAN}│{RESET}")
+        print(f"{CYAN}╰────────────────────────────────────────────────────────────────╯{RESET}")
 
         def_name = acc_list[default_idx - 1].get("username")
         selected_idx = default_idx
         try:
-            choice = input(f"{YELLOW}[?] Chọn tài khoản Instagram [1-{len(acc_list)}] (Enter = @{def_name}): {RESET}").strip()
+            choice = input(f"{CYAN}›{RESET} Chọn tài khoản Instagram [1-{len(acc_list)}] {CYAN}(Enter = @{def_name}){RESET}: ").strip()
             if choice.isdigit() and 1 <= int(choice) <= len(acc_list):
                 selected_idx = int(choice)
         except (EOFError, KeyboardInterrupt):
@@ -134,8 +134,13 @@ class InstagramJobRunner(BaseJobRunner):
         job_id = job["id"]
         object_id = job.get("object_id") or ""
         reward = int(job.get("reward_amount", 35))
+        remains = job.get("remains", "?")
 
-        self.log.info(f"👉 Bắt đầu Job #{job_id}: Follow @{object_id} (+{reward} xu)")
+        self.log.info(f"{'─'*50}")
+        self.log.info(
+            f"Job #{job_id} [INSTAGRAM] │ {CYAN}@{object_id}{RESET} │ "
+            f"Reward: {YELLOW}{reward} xu{RESET} │ Còn: {remains}"
+        )
 
         ok = self.adb.open_instagram_profile(object_id, package_name=self.package_name)
         if not ok:

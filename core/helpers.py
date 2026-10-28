@@ -33,13 +33,17 @@ RESET = "\033[0m"
 
 
 def print_banner():
-    """Hiển thị banner tiêu đề khi khởi động."""
-    print(f"""
-{CYAN}╔══════════════════════════════════════════════════════╗
-║     Follow4Follow Multi-Platform Auto Runner 2.0     ║
-║        Hỗ trợ: TikTok & Instagram (PC & Termux)      ║
-╚══════════════════════════════════════════════════════╝{RESET}
-""")
+    """Màn hình chào kiểu console tool, hiện đại & trực quan."""
+    width = 62
+    print()
+    print(f"{CYAN}╭{'─' * width}╮{RESET}")
+    print(f"{CYAN}│{RESET}{WHITE}{'FOLLOW4FOLLOW  /  AUTO RUNNER':^{width}}{RESET}{CYAN}│{RESET}")
+    print(f"{CYAN}│{RESET}{GREEN}{'◆':>5}  {'MULTI-PLATFORM AUTOMATION TOOL':<53}{RESET}{CYAN}│{RESET}")
+    print(f"{CYAN}│{RESET}{'TikTok  •  Instagram  •  PC  •  Android / Termux':^{width}}{CYAN}│{RESET}")
+    print(f"{CYAN}├{'─' * width}┤{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}●{RESET}  {WHITE}Console interface{RESET}                         {CYAN}Version 2.0{RESET}  {CYAN}│{RESET}")
+    print(f"{CYAN}╰{'─' * width}╯{RESET}")
+    print()
 
 
 def get_connected_devices() -> List[str]:

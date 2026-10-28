@@ -70,17 +70,17 @@ class TikTokJobRunner(BaseJobRunner):
             self.log.info(f"{GREEN}✓ Đang dùng tài khoản TikTok:{RESET} {CYAN}@{self.account_name}{RESET} (ID: {self.account_id})")
             return
 
-        print(f"\n{CYAN}┌── Danh sách tài khoản TikTok liên kết ──────────────────────────┐{RESET}")
+        print(f"\n{CYAN}╭─ {WHITE}TÀI KHOẢN TIKTOK ĐÃ LIÊN KẾT{CYAN} ───────────────────────────╮{RESET}")
         for idx, acc in enumerate(acc_list, start=1):
             status = acc.get("status", "Hoạt động")
             name = acc.get("name", "")
             acc_id = acc.get("id", "")
             is_def = f" {GREEN}(Mặc định){RESET}" if idx == default_idx else ""
-            print(f"{CYAN}│{RESET}  [{idx}] {WHITE}@{name:<22}{RESET} │ ID: {acc_id:<6} │ {status:<9}{is_def} {CYAN}│{RESET}")
-        print(f"{CYAN}└─────────────────────────────────────────────────────────────────┘{RESET}")
+            print(f"{CYAN}│{RESET}  {YELLOW}[{idx:02}]{RESET}  {WHITE}@{name:<24}{RESET} {CYAN}ID:{RESET} {acc_id:<8} {CYAN}•{RESET} {status:<12}{is_def} {CYAN}│{RESET}")
+        print(f"{CYAN}╰────────────────────────────────────────────────────────────────╯{RESET}")
 
         def_name = acc_list[default_idx - 1]["name"]
-        prompt_txt = f"{YELLOW}[?] Chọn tài khoản làm job [1-{len(acc_list)}] (Enter = @{def_name}): {RESET}"
+        prompt_txt = f"{CYAN}›{RESET} Chọn tài khoản [1-{len(acc_list)}] {CYAN}(Enter = @{def_name}){RESET}: "
 
         selected_idx = default_idx
         try:
@@ -158,8 +158,13 @@ class TikTokJobRunner(BaseJobRunner):
         job_id = job["id"]
         object_id = job["object_id"]
         reward = int(job.get("reward_amount", 26))
+        remains = job.get("remains", "?")
 
-        self.log.info(f"👉 [FOLLOW] Bắt đầu Job #{job_id}: @{object_id} (+{reward} coin)")
+        self.log.info(f"{'─'*50}")
+        self.log.info(
+            f"Job #{job_id} [FOLLOW] │ {CYAN}@{object_id}{RESET} │ "
+            f"Reward: {YELLOW}{reward} coin{RESET} │ Còn: {remains}"
+        )
 
         ok = self.adb.open_tiktok_profile(object_id, package_name=self.package_name)
         if not ok:
@@ -204,8 +209,13 @@ class TikTokJobRunner(BaseJobRunner):
         job_id = job["id"]
         target = job.get("link") or job.get("original_link") or job.get("object_id")
         reward = int(job.get("reward_amount", 10))
+        remains = job.get("remains", "?")
 
-        self.log.info(f"👉 [LIKE] Bắt đầu Job #{job_id}: {target} (+{reward} coin)")
+        self.log.info(f"{'─'*50}")
+        self.log.info(
+            f"Job #{job_id} [LIKE] │ {CYAN}{target}{RESET} │ "
+            f"Reward: {YELLOW}{reward} coin{RESET} │ Còn: {remains}"
+        )
 
         before_sig = self.adb.get_current_video_info(package=self.package_name)
         ok = self.adb.open_tiktok_video(target, package_name=self.package_name)

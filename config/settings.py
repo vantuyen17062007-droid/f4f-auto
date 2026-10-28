@@ -118,8 +118,9 @@ def cleanup_old_logs(days: int = 7):
 
 def interactive_configure(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """Trình hướng dẫn thiết lập cấu hình trực quan qua console."""
-    print(f"\n{CYAN}── CẤU HÌNH THÔNG SỐ CHẠY TOOL ──────────────────────────{RESET}")
-    print(f"{WHITE}(Nhấn Enter để giữ nguyên giá trị mặc định trong ngoặc []){RESET}\n")
+    print(f"\n{CYAN}╭─ {WHITE}THIẾT LẬP CẤU HÌNH{CYAN} ─────────────────────────────────────╮{RESET}")
+    print(f"{CYAN}│{RESET}  Nhập giá trị mới hoặc nhấn {YELLOW}Enter{RESET} để giữ cấu hình hiện tại. {CYAN}│{RESET}")
+    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}\n")
 
     # 1. Tài khoản F4F
     cur_u = cfg.get("f4f_user", "")
@@ -197,15 +198,15 @@ def check_or_prompt_credentials(cfg: Dict[str, Any]) -> Dict[str, Any]:
         times = cfg.get("human_behavior_scroll_times", 2)
         hb_desc = f"Cứ sau {every_n} jobs -> Lướt {times} video" if cfg.get("human_behavior", True) else "Tắt"
 
-        print(f"{CYAN}┌── Cấu hình hiện tại ────────────────────────────────────────┐{RESET}")
-        print(f"{CYAN}│{RESET} • Tài khoản F4F : {GREEN}{cfg['f4f_user']:<43}{RESET}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET} • Chế độ job    : {WHITE}{cfg.get('job_type', 'all'):<43}{RESET}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET} • Số jobs chạy  : {WHITE}{str(cfg.get('max_jobs_per_session', 50)):<6}{RESET} │ Delay: {WHITE}{cfg.get('delay_min', 8)}-{cfg.get('delay_max', 18)}s{RESET}{' '*18}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET} • Chống ban     : {YELLOW}{hb_desc:<43}{RESET}{CYAN}│{RESET}")
-        print(f"{CYAN}└─────────────────────────────────────────────────────────────┘{RESET}")
+        print(f"{CYAN}╭─ {WHITE}SESSION OVERVIEW{CYAN} ───────────────────────────────────────╮{RESET}")
+        print(f"{CYAN}│{RESET}  {CYAN}ACCOUNT{RESET}    {GREEN}{cfg['f4f_user']:<48}{CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}  {CYAN}JOB MODE{RESET}   {WHITE}{cfg.get('job_type', 'all'):<48}{CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}  {CYAN}JOB LIMIT{RESET}  {WHITE}{str(cfg.get('max_jobs_per_session', 50)):<8}{RESET}  {CYAN}DELAY{RESET}  {WHITE}{cfg.get('delay_min', 8)}-{cfg.get('delay_max', 18)}s{RESET}{' ' * 18}{CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}  {CYAN}BROWSE{RESET}     {YELLOW}{hb_desc:<48}{CYAN}│{RESET}")
+        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
 
         try:
-            choice = input(f"{YELLOW}[?] Nhấn Enter (hoặc 1) để CHẠY NGAY, gõ 2 (hoặc 'c') để cấu hình lại: {RESET}").strip().lower()
+            choice = input(f"{CYAN}›{RESET} {WHITE}Enter{RESET} = chạy ngay  {CYAN}|{RESET}  {YELLOW}2/c{RESET} = chỉnh cấu hình  {CYAN}» {RESET}").strip().lower()
             if choice in ("2", "c", "edit", "config", "s", "sua", "y", "yes"):
                 cfg = interactive_configure(cfg)
         except (EOFError, KeyboardInterrupt):
@@ -227,16 +228,16 @@ def select_platform_menu(cfg: Dict[str, Any]) -> str:
     if not sys.stdin.isatty():
         return cfg.get("platform", "tiktok")
 
-    print(f"\n{CYAN}┌── CHỌN NỀN TẢNG KIẾM COIN ────────────────────────────────┐{RESET}")
-    print(f"{CYAN}│{RESET}  [1] {WHITE}TikTok{RESET} (Hỗ trợ Follow nick & Like video)                  {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  [2] {GREEN}Instagram{RESET} (Hỗ trợ Follow trang cá nhân +35 xu)          {CYAN}│{RESET}")
-    print(f"{CYAN}└─────────────────────────────────────────────────────────────┘{RESET}")
+    print(f"\n{CYAN}╭─ {WHITE}CHỌN NỀN TẢNG{CYAN} ─────────────────────────────────────────╮{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}TikTok{RESET}      {CYAN}Follow tài khoản + Like video{RESET}             {CYAN}│{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {GREEN}Instagram{RESET}  {CYAN}Follow trang cá nhân (+35 xu){RESET}            {CYAN}│{RESET}")
+    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
 
     cur_plat = cfg.get("platform", "tiktok").lower()
     def_num = "2" if ("ig" in cur_plat or "insta" in cur_plat) else "1"
 
     try:
-        choice = input(f"{YELLOW}[?] Chọn nền tảng [1: TikTok / 2: Instagram] (Enter = [{def_num}]): {RESET}").strip().lower()
+        choice = input(f"{CYAN}›{RESET} Chọn [1/2] {CYAN}(Enter = {def_num}){RESET}: ").strip().lower()
         if choice in ("2", "ig", "insta", "instagram"):
             cfg["platform"] = "instagram"
             return "instagram"
@@ -268,11 +269,11 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
     if not sys.stdin.isatty():
         return cfg.get("job_type", "all")
 
-    print(f"\n{CYAN}┌── MENU LỰA CHỌN LOẠI JOB TIKTOK ────────────────────────────┐{RESET}")
-    print(f"{CYAN}│{RESET}  [1] {WHITE}Chỉ làm Job Follow TikTok{RESET}                                 {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  [2] {WHITE}Chỉ làm Job Like TikTok{RESET}                                   {CYAN}│{RESET}")
-    print(f"{CYAN}│{RESET}  [3] {GREEN}Chạy kết hợp cả hai (Follow & Like){RESET}                       {CYAN}│{RESET}")
-    print(f"{CYAN}└─────────────────────────────────────────────────────────────┘{RESET}")
+    print(f"\n{CYAN}╭─ {WHITE}CHẾ ĐỘ JOB TIKTOK{CYAN} ──────────────────────────────────────╮{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}FOLLOW ONLY{RESET}   {CYAN}Chỉ follow tài khoản{RESET}                   {CYAN}│{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {WHITE}LIKE ONLY{RESET}     {CYAN}Chỉ like video{RESET}                         {CYAN}│{RESET}")
+    print(f"{CYAN}│{RESET}  {YELLOW}[3]{RESET}  {GREEN}MIXED MODE{RESET}    {CYAN}Kết hợp Follow + Like{RESET}                {CYAN}│{RESET}")
+    print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
 
     def_num = "3"
     if default_type == "follow":
@@ -282,12 +283,15 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
 
     try:
         choice = input(
-            f"{YELLOW}[?] Chọn loại job muốn chạy [1/2/3] (Enter = [{def_num}] {type_labels.get(default_type, 'all')}): {RESET}"
+            f"{CYAN}›{RESET} Chọn chế độ [1/2/3] {CYAN}(Enter = {def_num}){RESET}: "
         ).strip().lower()
         selected = type_map.get(choice, default_type if not choice else "all")
     except (EOFError, KeyboardInterrupt):
         print("\nĐã hủy.")
         sys.exit(0)
+
+    cfg["job_type"] = selected
+    return selected
 
     cfg["job_type"] = selected
     return selected
