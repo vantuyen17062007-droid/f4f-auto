@@ -1,0 +1,20 @@
+{
+  "f4f_user": "your_f4f_username",
+  "f4f_pass": "your_f4f_password",
+  "platform": "tiktok",
+  "tiktok_uid": "",
+  "instagram_username": "",
+  "job_type": "all",
+  "adb_serial": "auto",
+  "tiktok_package": "auto",
+  "instagram_package": "auto",
+  "max_jobs_per_session": 50,
+  "delay_min": 8,
+  "delay_max": 18,
+  "profile_load_timeout": 8,
+  "verify_timeout": 3,
+  "human_behavior": true,
+  "human_behavior_every_n_jobs": 5,
+  "human_behavior_scroll_times": 2,
+  "auto_clean_logs_days": 7
+}

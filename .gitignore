@@ -1,0 +1,25 @@
+# Personal configuration with sensitive credentials
+config.json
+
+# Logs
+logs/
+*.log
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Screenshots and UI XML dumps
+*.png
+*.jpg
+*.jpeg
+*.xml
+
+# Environment variables
+.env
+.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
