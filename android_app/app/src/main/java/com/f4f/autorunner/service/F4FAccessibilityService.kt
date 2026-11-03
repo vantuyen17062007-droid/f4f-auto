@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.f4f.autorunner.controller.RunnerController
 
 class F4FAccessibilityService : AccessibilityService() {
 
@@ -51,7 +52,8 @@ class F4FAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Tự động kiểm tra và đóng popup phiền toái khi chuyển màn hình
+        if (!RunnerController.isRunning) return
+
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             dismissPopups()
         }
@@ -64,6 +66,8 @@ class F4FAccessibilityService : AccessibilityService() {
      * Trả về: "followed", "already", "requested", hoặc "failed"
      */
     fun performFollow(): String {
+        if (!RunnerController.isRunning) return "stopped"
+
         val root = rootInActiveWindow ?: return "failed"
 
         // 1. Kiểm tra Instagram Follow Button ID đặc trưng
@@ -82,6 +86,8 @@ class F4FAccessibilityService : AccessibilityService() {
         collectAllNodes(root, allNodes)
 
         for (node in allNodes) {
+            if (!RunnerController.isRunning) return "stopped"
+
             val text = (node.text ?: node.contentDescription ?: "").toString().trim().lowercase()
             if (text.isEmpty()) continue
 
@@ -106,11 +112,15 @@ class F4FAccessibilityService : AccessibilityService() {
      * Trả về: "liked", "already", hoặc "failed"
      */
     fun performLikeTikTok(): String {
+        if (!RunnerController.isRunning) return "stopped"
+
         val root = rootInActiveWindow ?: return "failed"
         val allNodes = ArrayList<AccessibilityNodeInfo>()
         collectAllNodes(root, allNodes)
 
         for (node in allNodes) {
+            if (!RunnerController.isRunning) return "stopped"
+
             val desc = (node.contentDescription ?: node.text ?: "").toString().trim().lowercase()
             val resId = node.viewIdResourceName.orEmpty()
 
@@ -136,6 +146,8 @@ class F4FAccessibilityService : AccessibilityService() {
      * Tự động đóng các popup cấp quyền / đồng bộ danh bạ.
      */
     fun dismissPopups(): Boolean {
+        if (!RunnerController.isRunning) return false
+
         val root = rootInActiveWindow ?: return false
         val allNodes = ArrayList<AccessibilityNodeInfo>()
         collectAllNodes(root, allNodes)
@@ -154,7 +166,7 @@ class F4FAccessibilityService : AccessibilityService() {
      * Mô phỏng người thật vuốt lướt feed chống ban.
      */
     fun simulateHumanBrowse(times: Int, onComplete: () -> Unit) {
-        if (times <= 0) {
+        if (times <= 0 || !RunnerController.isRunning) {
             onComplete()
             return
         }
@@ -168,7 +180,7 @@ class F4FAccessibilityService : AccessibilityService() {
         val endY = (screenHeight * 0.25f)
 
         fun doSwipe(remaining: Int) {
-            if (remaining <= 0) {
+            if (remaining <= 0 || !RunnerController.isRunning) {
                 onComplete()
                 return
             }
@@ -195,11 +207,12 @@ class F4FAccessibilityService : AccessibilityService() {
     }
 
     private fun clickNodeOrCoordinates(node: AccessibilityNodeInfo): Boolean {
+        if (!RunnerController.isRunning) return false
+
         if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
             return true
         }
 
-        // Nếu node không clickable, tìm cha gần nhất
         var parent = node.parent
         while (parent != null) {
             if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
@@ -208,7 +221,6 @@ class F4FAccessibilityService : AccessibilityService() {
             parent = parent.parent
         }
 
-        // Fallback: Click trực tiếp vào tọa độ trung tâm bằng Gesture
         val rect = Rect()
         node.getBoundsInScreen(rect)
         if (rect.width() > 0 && rect.height() > 0) {
