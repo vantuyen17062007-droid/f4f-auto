@@ -3,8 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"
-    android:fillViewport="true">
+    android:background="@color/bg_dark"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,95 +13,159 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- HEADER BANNER -->
+        <!-- 1. HERO HEADER WITH APP ICON -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card_rounded"
+            android:background="@drawable/bg_card_premium"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:src="@drawable/ic_launcher"
+                android:contentDescription="App Logo" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="F4F AUTO RUNNER"
+                        android:textColor="@color/text_white"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:background="#2000E676"
+                        android:paddingStart="6dp"
+                        android:paddingTop="2dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="2dp"
+                        android:text="PRO v2.0"
+                        android:textColor="@color/primary_neon"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="TikTok &amp; Instagram • Trợ năng Accessibility"
+                    android:textColor="@color/text_sub"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 2. QUICK HEALTH & PERMISSIONS STATUS -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/btn_toggle_accessibility"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_premium"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/dot_accessibility"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/circle_green" />
+
+                <TextView
+                    android:id="@+id/tv_status_accessibility"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Trợ năng: BẬT"
+                    android:textColor="@color/text_white"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_toggle_overlay"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_premium"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/dot_overlay"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/circle_green" />
+
+                <TextView
+                    android:id="@+id/tv_status_overlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Bong bóng: ĐÃ CẤP"
+                    android:textColor="@color/text_white"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 3. F4F ACCOUNT & LOGIN CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card_premium"
             android:orientation="vertical"
             android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="FOLLOW4FOLLOW AUTO RUNNER"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Phiên bản Native Android • Trợ năng Accessibility"
-                android:textColor="@color/primary"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- PERMISSIONS CHECK CARD -->
-        <LinearLayout
-            android:id="@+id/card_permissions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card_rounded"
-            android:orientation="vertical"
-            android:padding="14dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Quyền hệ thống"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btn_enable_accessibility"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="@color/primary"
-                android:text="1. Bật Dịch vụ Trợ Năng (Bắt buộc)"
-                android:textColor="#000000" />
-
-            <Button
-                android:id="@+id/btn_enable_overlay"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:backgroundTint="@color/card_dark"
-                android:text="2. Cấp quyền cửa sổ nổi (Bong bóng)"
-                android:textColor="@color/text_primary" />
-        </LinearLayout>
-
-        <!-- F4F LOGIN CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card_rounded"
-            android:orientation="vertical"
-            android:padding="14dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Tài khoản Follow4Follow"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
+                android:text="TÀI KHOẢN FOLLOW4FOLLOW"
+                android:textColor="@color/cyan_neon"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/et_f4f_user"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:background="#242E44"
-                android:hint="Username F4F"
-                android:padding="10dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_input_field"
+                android:hint="Tên đăng nhập F4F"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="@color/text_white"
+                android:textColorHint="@color/text_muted"
                 android:textSize="14sp" />
 
             <EditText
@@ -108,143 +173,296 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
-                android:background="#242E44"
-                android:hint="Password F4F"
+                android:background="@drawable/bg_input_field"
+                android:hint="Mật khẩu"
                 android:inputType="textPassword"
-                android:padding="10dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="@color/text_white"
+                android:textColorHint="@color/text_muted"
                 android:textSize="14sp" />
 
             <Button
                 android:id="@+id/btn_login"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="@color/primary_dark"
-                android:text="Đăng nhập &amp; Tải danh sách Nick" />
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_btn_secondary"
+                android:text="Đăng nhập &amp; Đồng bộ Nick"
+                android:textColor="@color/cyan_neon"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tv_account_info"
+            <!-- Profile Info Box (Hidden until login) -->
+            <LinearLayout
+                android:id="@+id/box_profile_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Chưa đăng nhập"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+                android:layout_marginTop="10dp"
+                android:background="#162033"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_profile_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@username"
+                    android:textColor="@color/text_white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_profile_balance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#20FFD700"
+                    android:paddingStart="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="4dp"
+                    android:text="🪙 0 xu"
+                    android:textColor="@color/gold_coin"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- RUN CONFIG CARD -->
+        <!-- 4. PLATFORM & SESSION CONFIG -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card_rounded"
+            android:background="@drawable/bg_card_premium"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Cấu hình phiên chạy"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
+                android:text="CẤU HÌNH PHIÊN CHẠY"
+                android:textColor="@color/cyan_neon"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
+            <!-- Platform Switcher Radio Group -->
             <RadioGroup
                 android:id="@+id/rg_platform"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
                 <RadioButton
                     android:id="@+id/rb_tiktok"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_field"
+                    android:button="@null"
                     android:checked="true"
+                    android:drawableStart="@drawable/ic_tiktok"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
                     android:text="TikTok"
-                    android:textColor="@color/text_primary" />
+                    android:textColor="@color/text_white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <RadioButton
                     android:id="@+id/rb_instagram"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="24dp"
-                    android:text="Instagram (+35 xu)"
-                    android:textColor="@color/text_primary" />
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_field"
+                    android:button="@null"
+                    android:drawableStart="@drawable/ic_instagram"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="Instagram (+35)"
+                    android:textColor="@color/text_white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
             </RadioGroup>
+
+            <!-- Linked Account Dropdown -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Chọn tài khoản làm việc:"
+                android:textColor="@color/text_sub"
+                android:textSize="12sp" />
 
             <Spinner
                 android:id="@+id/sp_accounts"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:background="#242E44" />
+                android:layout_height="46dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_input_field"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
 
+            <!-- Row: Max Jobs & Delay -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/et_max_jobs"
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
                     android:layout_weight="1"
-                    android:background="#242E44"
-                    android:hint="Số job (50)"
-                    android:inputType="number"
-                    android:padding="8dp"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:orientation="vertical">
 
-                <EditText
-                    android:id="@+id/et_delay"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Số job tối đa:"
+                        android:textColor="@color/text_sub"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/et_max_jobs"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_input_field"
+                        android:hint="50"
+                        android:inputType="number"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:textColor="@color/text_white"
+                        android:textColorHint="@color/text_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
-                    android:background="#242E44"
-                    android:hint="Delay 8-18s"
-                    android:padding="8dp"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Delay nghỉ (giây):"
+                        android:textColor="@color/text_sub"
+                        android:textSize="11sp" />
+
+                    <EditText
+                        android:id="@+id/et_delay"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_input_field"
+                        android:hint="8-18"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:textColor="@color/text_white"
+                        android:textColorHint="@color/text_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- 5. MAIN START / STOP ACTION BUTTON -->
             <Button
                 android:id="@+id/btn_start"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="14dp"
-                android:backgroundTint="@color/primary"
-                android:text="BẮT ĐẦU CHẠY AUTO"
-                android:textColor="#000000"
+                android:layout_height="54dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_btn_primary"
+                android:elevation="6dp"
+                android:text="🚀 BẮT ĐẦU CHẠY AUTO"
+                android:textColor="#05080E"
                 android:textSize="16sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- LIVE LOGS CONSOLE CARD -->
+        <!-- 6. LIVE CONSOLE / TERMINAL LOGS -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_height="240dp"
             android:layout_marginTop="12dp"
-            android:background="#0A0E17"
-            android:orientation="vertical"
-            android:padding="10dp">
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_terminal"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_terminal_logs"
+            <!-- Console Window Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:background="#101726"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <TextView
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:background="@drawable/circle_green"
+                    android:backgroundTint="#EF4444" />
+
+                <TextView
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/circle_green"
+                    android:backgroundTint="#F59E0B" />
+
+                <TextView
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/circle_green"
+                    android:backgroundTint="#10B981" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:text="LIVE TERMINAL LOGS"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/btn_clear_log"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Xóa log"
+                    android:textColor="@color/cyan_neon"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <ScrollView
+                android:id="@+id/scroll_logs"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fontFamily="monospace"
-                android:scrollbars="vertical"
-                android:text="[System] Sẵn sàng...\n"
-                android:textColor="#00E676"
-                android:textSize="11sp" />
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/tv_terminal_logs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="3dp"
+                    android:text="[System] Đã sẵn sàng. Vui lòng đăng nhập để bắt đầu...\n"
+                    android:textColor="@color/primary_neon"
+                    android:textSize="11sp" />
+            </ScrollView>
         </LinearLayout>
 
     </LinearLayout>

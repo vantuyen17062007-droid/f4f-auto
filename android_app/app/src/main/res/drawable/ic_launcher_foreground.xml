@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Loop Cyan Arc -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,26 C69.46,26 82,38.54 82,54 C82,59.3 80.52,64.25 77.96,68.46 L71.55,62.05 C72.48,59.58 73,56.86 73,54 C73,43.51 64.49,35 54,35 L54,42 L41,30.5 L54,19 Z" />
+
+    <!-- Outer Loop Green Arc -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M54,82 C38.54,82 26,69.46 26,54 C26,48.7 27.48,43.75 30.04,39.54 L36.45,45.95 C35.52,48.42 35,51.14 35,54 C35,64.49 43.51,73 54,73 L54,66 L67,77.5 L54,89 Z" />
+
+    <!-- Center Power Lightning Bolt -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M56,38 L45,54 L53,54 L49,70 L63,52 L54,52 Z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M55,42 L48,53 L54,53 L51,64 L60,53 L54,53 Z" />
+</vector>

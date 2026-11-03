@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#00E676</color>
-    <color name="primary_dark">#00B0FF</color>
-    <color name="accent">#FF4081</color>
-    <color name="background_dark">#121824</color>
-    <color name="card_dark">#1A2234</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#9E9E9E</color>
-    <color name="success">#00E676</color>
-    <color name="error">#FF5252</color>
+    <!-- Backgrounds -->
+    <color name="bg_dark">#0A0E17</color>
+    <color name="bg_card">#141B29</color>
+    <color name="bg_card_secondary">#1B2436</color>
+    <color name="card_stroke">#233047</color>
+    <color name="input_bg">#182233</color>
+    <color name="input_stroke">#2B3B56</color>
+    <color name="terminal_bg">#05080E</color>
+
+    <!-- Brand & Accent Gradients -->
+    <color name="primary_neon">#00E676</color>
+    <color name="cyan_neon">#00E5FF</color>
+    <color name="pink_tiktok">#FE2C55</color>
+    <color name="blue_tiktok">#25F4EE</color>
+    <color name="purple_insta">#833AB4</color>
+    <color name="orange_insta">#FD1D1D</color>
+    <color name="gold_coin">#FFD700</color>
+
+    <!-- State & Text -->
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_sub">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+    <color name="status_green">#10B981</color>
+    <color name="status_red">#EF4444</color>
+    <color name="status_amber">#F59E0B</color>
 </resources>
