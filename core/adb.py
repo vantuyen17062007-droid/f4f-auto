@@ -16,25 +16,40 @@ import time
 import random
 import uiautomator2 as u2
 from lxml import etree
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Dict
 
 from core.helpers import (
-    CYAN, GREEN, YELLOW, RED, RESET,
+    CYAN, GREEN, YELLOW, RESET,
     resolve_device, resolve_video_id
 )
 
 BOUNDS = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
 
 FOLLOW_LABELS = {"follow", "theo dõi", "follow lại", "follow back", "theo dõi lại"}
-FOLLOWED_LABELS = {"đã follow", "đang follow", "following", "đã theo dõi", "bạn bè", "friends"}
-REQUESTED_LABELS = {"đã yêu cầu", "requested"}
-MESSAGE_LABELS = {"nhắn tin", "message"}
-
-POPUP_DISMISS_LABELS = {
-    "để sau", "không phải bây giờ", "lúc khác", "hủy", "từ chối",
-    "không cho phép", "bỏ qua", "đóng", "not now", "cancel", "dismiss",
-    "don't allow", "later", "never", "remind me later", "skip"
+FOLLOWED_LABELS = {
+    "đã follow", "đang follow", "following", "đã theo dõi",
+    "đang theo dõi", "bạn bè", "friends", "followed",
 }
+REQUESTED_LABELS = {"đã yêu cầu", "yêu cầu đã gửi", "requested", "request sent"}
+MESSAGE_LABELS = {"nhắn tin", "message", "gửi tin nhắn"}
+
+LIKE_LABELS = {"thích", "like", "thích video", "like video"}
+UNLIKE_LABELS = {"bỏ thích", "unlike", "đã thích", "liked"}
+LIKE_RES_IDS = (":id/g86", ":id/g8m")
+
+SAFE_POPUP_LABELS = {
+    "để sau", "không phải bây giờ", "lúc khác", "không cho phép", "từ chối",
+    "not now", "later", "remind me later", "don't allow", "dismiss",
+}
+RISKY_POPUP_LABELS = {
+    "hủy", "đóng", "bỏ qua", "cancel", "skip", "never",
+}
+POPUP_DISMISS_LABELS = SAFE_POPUP_LABELS | RISKY_POPUP_LABELS
+DIALOG_HINTS = ("dialog", "modal", "popup", "sheet", "alert")
+SYSTEM_PACKAGES = (
+    "com.android.permissioncontroller",
+    "com.google.android.permissioncontroller",
+)
 
 STATE_BY_LABEL = {
     **{k: "not_followed" for k in FOLLOW_LABELS},
@@ -43,17 +58,31 @@ STATE_BY_LABEL = {
 }
 
 
+class AdbConnectionError(RuntimeError):
+    """Không thể kết nối hoặc điều khiển thiết bị Android qua ADB."""
+
+
 class AdbController:
     def __init__(self, serial=None, timeout=3):
         # Tự động nhận diện thiết bị khả dụng
         resolved = resolve_device(serial)
         self.serial = resolved
-        if self.serial:
-            print(f"{CYAN}[ADB]{RESET} Kết nối thiết bị: {GREEN}{self.serial}{RESET}")
-            self.d = u2.connect(self.serial)
-        else:
-            print(f"{YELLOW}[ADB]{RESET} Không chỉ định serial cụ thể, kết nối mặc định...")
-            self.d = u2.connect()
+        try:
+            if self.serial:
+                print(f"{CYAN}[ADB]{RESET} Kết nối thiết bị: {GREEN}{self.serial}{RESET}")
+                self.d = u2.connect(self.serial)
+            else:
+                print(f"{YELLOW}[ADB]{RESET} Không chỉ định serial cụ thể, kết nối mặc định...")
+                self.d = u2.connect()
+
+            # Ép uiautomator2 thực hiện một lệnh thật để phát hiện sớm thiết bị offline.
+            self.d.window_size()
+        except Exception as e:
+            raise AdbConnectionError(
+                "Không thể kết nối thiết bị Android qua ADB. "
+                "Hãy kiểm tra 'adb devices', bật USB debugging hoặc chạy "
+                f"'adb connect <ip>:<port>'. Chi tiết: {e}"
+            ) from e
 
         try:
             self.d.settings["wait_timeout"] = timeout
@@ -74,6 +103,14 @@ class AdbController:
         except Exception:
             return ""
 
+    def current_package(self) -> str:
+        """Trả về package đang ở tiền cảnh (rỗng nếu không xác định được)."""
+        try:
+            info = self.d.app_current() or {}
+            return str(info.get("package") or "")
+        except Exception:
+            return ""
+
     def tap(self, x: int, y: int):
         self.d.click(x, y)
 
@@ -90,6 +127,23 @@ class AdbController:
             except Exception:
                 return 720, 1600
         return self._size
+
+    def get_device_info(self) -> Dict[str, str]:
+        """Thông tin cơ bản của thiết bị hiển thị trong bảng Preflight."""
+        model = self.shell("getprop ro.product.marketname")
+        if not model:
+            model = self.shell("getprop ro.product.model")
+        android = self.shell("getprop ro.build.version.release")
+        try:
+            w, h = self.get_screen_size()
+        except Exception:
+            w = h = 0
+        return {
+            "serial": self.serial or "(mặc định)",
+            "model": model or "Không rõ",
+            "android": android or "?",
+            "screen": f"{w}x{h}" if w else "?x?",
+        }
 
     def dump_ui_xml(self, xml_name="window_dump.xml", save_file=False, compressed=True) -> bool:
         """Dump UI hierarchy về lxml etree."""
@@ -114,6 +168,27 @@ class AdbController:
         return tuple(map(int, m.groups())) if m else None
 
     # ── NHẬN DIỆN PACKAGE TRÊN THIẾT BỊ ──────────────────────────────
+    def _detect_package(self, candidates, keywords, app_name: str) -> str:
+        """Tìm package đã cài; thử danh sách ưu tiên trước rồi quét toàn bộ."""
+        for pkg in candidates:
+            out = self.shell(f"pm path {pkg}")
+            if "package:" in out:
+                return pkg
+
+        installed = self.shell("pm list packages")
+        for line in installed.splitlines():
+            pkg = line.replace("package:", "").strip()
+            if not pkg:
+                continue
+            lower = pkg.lower()
+            if any(keyword in lower for keyword in keywords):
+                return pkg
+
+        raise RuntimeError(
+            f"Không tìm thấy ứng dụng {app_name} trên thiết bị. "
+            "Hãy cài đặt ứng dụng hoặc cấu hình package chính xác trong config.json."
+        )
+
     def detect_tiktok_package(self) -> str:
         """Tự động kiểm tra package TikTok có trên máy."""
         if self._cached_pkg:
@@ -124,13 +199,9 @@ class AdbController:
             "com.zhiliaoapp.musically",
             "com.zhiliaoapp.musically.go",
         ]
-        for pkg in candidates:
-            out = self.shell(f"pm path {pkg}")
-            if "package:" in out:
-                self._cached_pkg = pkg
-                return pkg
-
-        self._cached_pkg = "com.ss.android.ugc.trill"
+        self._cached_pkg = self._detect_package(
+            candidates, ("musically", "trill", "tiktok"), "TikTok"
+        )
         return self._cached_pkg
 
     def detect_instagram_package(self) -> str:
@@ -139,13 +210,9 @@ class AdbController:
             return self._cached_ig_pkg
 
         candidates = ["com.instagram.android", "com.instagram.lite"]
-        for pkg in candidates:
-            out = self.shell(f"pm path {pkg}")
-            if "package:" in out:
-                self._cached_ig_pkg = pkg
-                return pkg
-
-        self._cached_ig_pkg = "com.instagram.android"
+        self._cached_ig_pkg = self._detect_package(
+            candidates, ("instagram",), "Instagram"
+        )
         return self._cached_ig_pkg
 
     def detect_facebook_package(self) -> str:
@@ -154,39 +221,90 @@ class AdbController:
             return self._cached_fb_pkg
 
         candidates = ["com.facebook.katana", "com.facebook.lite"]
-        for pkg in candidates:
-            out = self.shell(f"pm path {pkg}")
-            if "package:" in out:
-                self._cached_fb_pkg = pkg
-                return pkg
-
-        self._cached_fb_pkg = "com.facebook.katana"
+        self._cached_fb_pkg = self._detect_package(
+            candidates, ("facebook", "katana"), "Facebook"
+        )
         return self._cached_fb_pkg
 
     # ── ĐÓNG POPUP PHIỀN TOÁI ─────────────────────────────────────────
+    @staticmethod
+    def _in_dialog(node) -> bool:
+        """Kiểm tra node nằm trong dialog/modal/bottom-sheet hay không."""
+        current = node
+        for _ in range(6):
+            if current is None:
+                return False
+            cls = (current.get("class") or "").lower()
+            res_id = (current.get("resource-id") or "").lower()
+            if any(hint in cls or hint in res_id for hint in DIALOG_HINTS):
+                return True
+            current = current.getparent()
+        return False
+
     def dismiss_popups(self, package=None) -> bool:
         """Tự động phát hiện và bấm đóng popup phiền toái (đồng bộ danh bạ, thông báo, v.v.)."""
         if not self.dump_ui_xml(compressed=True):
             return False
 
         for node in self._tree.iter("*"):
-            if package and node.get("package") != package:
+            node_pkg = node.get("package") or ""
+            # Cho phép cả dialog hệ thống (quyền truy cập, thông báo...).
+            if (
+                package
+                and node_pkg != package
+                and not node_pkg.startswith(SYSTEM_PACKAGES)
+            ):
                 continue
+
             text = (node.get("text") or "").strip().lower()
             desc = (node.get("content-desc") or "").strip().lower()
+            matched = ({text, desc} & POPUP_DISMISS_LABELS)
+            if not matched:
+                continue
+            label = next(iter(matched))
+
             box = self._box(node)
             if not box:
                 continue
 
-            for kw in POPUP_DISMISS_LABELS:
-                if kw == text or kw == desc:
-                    cx, cy = (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
-                    self.tap(cx, cy)
-                    time.sleep(0.4)
-                    return True
+            clickable = (node.get("clickable") or "").lower() == "true"
+            cls = (node.get("class") or "").lower()
+            if not (clickable or "button" in cls):
+                # Text có thể nằm trong một container clickable.
+                parent = node.getparent()
+                found = False
+                for _ in range(3):
+                    if parent is None:
+                        break
+                    if (parent.get("clickable") or "").lower() == "true":
+                        parent_box = self._box(parent)
+                        if parent_box:
+                            box = parent_box
+                            found = True
+                        break
+                    parent = parent.getparent()
+                if not found:
+                    continue
+
+            # Các nhãn mơ hồ như "Hủy"/"Đóng"/"Bỏ qua" chỉ được bấm trong dialog.
+            if label in RISKY_POPUP_LABELS and not self._in_dialog(node):
+                continue
+
+            cx, cy = (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
+            self.tap(cx, cy)
+            time.sleep(0.4)
+            return True
         return False
 
     # ── MỞ PROFILE & VIDEO (TIKTOK & INSTAGRAM) ─────────────────────────
+    def _am_start(self, args) -> bool:
+        """Chạy `am start` và trả về True nếu Android không báo lỗi."""
+        try:
+            out = str(self.d.shell(["am", "start"] + list(args)).output)
+        except Exception:
+            return False
+        return "Error" not in out and "does not exist" not in out
+
     def open_tiktok_profile(self, target: str, package_name: Optional[str] = None) -> bool:
         """Mở trang cá nhân TikTok linh hoạt (URL, handle, UID)."""
         if not package_name or package_name == "auto":
@@ -203,13 +321,11 @@ class AdbController:
         else:
             url = f"https://www.tiktok.com/@{target}"
 
-        out = self.d.shell([
-            "am", "start",
+        return self._am_start([
             "-a", "android.intent.action.VIEW",
             "-d", url,
             "-p", package_name,
-        ]).output
-        return "Error" not in out
+        ])
 
     def open_instagram_profile(self, target: str, package_name: Optional[str] = None) -> bool:
         """Mở trang cá nhân Instagram linh hoạt (URL, handle)."""
@@ -224,13 +340,11 @@ class AdbController:
         else:
             url = f"https://www.instagram.com/{target}"
 
-        out = self.d.shell([
-            "am", "start",
+        return self._am_start([
             "-a", "android.intent.action.VIEW",
             "-d", url,
             "-p", package_name,
-        ]).output
-        return "Error" not in out
+        ])
 
     def open_tiktok_video(self, target: str, package_name: Optional[str] = None) -> bool:
         """Mở trực tiếp video TikTok qua DeepLinkActivityV2."""
@@ -241,13 +355,11 @@ class AdbController:
 
         # Nếu không trích xuất được ID -> fallback mở qua intent VIEW thông thường
         if not video_id:
-            out = self.d.shell([
-                "am", "start",
+            return self._am_start([
                 "-a", "android.intent.action.VIEW",
-                "-d", full_url or target,
+                "-d", full_url or str(target),
                 "-p", package_name,
-            ]).output
-            return "Error" not in out
+            ])
 
         # Mở bằng DeepLinkActivityV2
         scheme = "snssdk1180" if "trill" in package_name else "snssdk1233"
@@ -258,23 +370,21 @@ class AdbController:
         else:
             cmp_activity = f"{package_name}/com.ss.android.ugc.aweme.deeplink.DeepLinkActivityV2"
 
-        out = self.d.shell([
-            "am", "start",
+        ok = self._am_start([
             "-n", cmp_activity,
             "-a", "android.intent.action.VIEW",
             "-d", deeplink_uri,
-        ]).output
+        ])
 
         # Nếu lỗi component, fallback intent VIEW thông thường
-        if "Error" in out or "does not exist" in out:
-            out = self.d.shell([
-                "am", "start",
+        if not ok:
+            ok = self._am_start([
                 "-a", "android.intent.action.VIEW",
                 "-d", deeplink_uri,
                 "-p", package_name,
-            ]).output
+            ])
 
-        return "Error" not in out
+        return ok
 
     # ── NHẬN DIỆN & TƯƠNG TÁC LIKE VIDEO ──────────────────────────────
     def get_like_state(self, package=None, compressed=True) -> Tuple[str, Optional[Tuple[int, int]]]:
@@ -297,15 +407,31 @@ class AdbController:
             desc_lower = desc.lower()
             res_id = (node.get("resource-id") or "").strip()
             selected = (node.get("selected") or "").strip().lower()
+            clickable = (node.get("clickable") or "").strip().lower() == "true"
 
-            # Nhận biết đã like: content-desc báo "Đã thích" hoặc selected = true
-            if "đã thích" in desc_lower or "bỏ thích" in desc_lower:
-                is_liked = True
-            if (res_id.endswith(":id/g86") or res_id.endswith(":id/g8m")) and selected == "true":
+            # Không dùng chuỗi "lượt thích" vì đó thường là nhãn số lượng,
+            # không phải nút Like; bấm vào đó sẽ không thả tim.
+            id_match = any(res_id.endswith(rid) for rid in LIKE_RES_IDS)
+
+            # "Đã like": tùy build TikTok có nhiều dạng nhãn:
+            #   - gọn:  'Bỏ thích' / 'Đã thích' / 'Unlike' / 'Liked'
+            #   - dài:  'Đã thích video' / 'Bỏ thích video. N lượt thích'
+            # Ngoài ra icon Like nhiều build dùng selected=true khi đã thích.
+            unlike_hit = (
+                desc_lower in UNLIKE_LABELS
+                or desc_lower.startswith(("đã thích", "bỏ thích", "unlike", "liked"))
+                or ("bỏ thích" in desc_lower)
+                or ("unlike" in desc_lower)
+            )
+            icon_liked = selected == "true" and (
+                desc_lower in LIKE_LABELS or id_match
+            )
+
+            if unlike_hit or icon_liked:
                 is_liked = True
 
-            # Tìm tọa độ nút bấm thích
-            if desc in ("Thích", "Thích video") or "lượt thích" in desc_lower or res_id.endswith(":id/g8m") or res_id.endswith(":id/g86"):
+            is_like_button = desc_lower in LIKE_LABELS or (id_match and clickable)
+            if is_like_button:
                 box = self._box(node)
                 if box and like_btn_pos is None:
                     like_btn_pos = ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
@@ -332,15 +458,41 @@ class AdbController:
                 desc = text
         return title, desc
 
-    def wait_video_loaded(self, package=None, timeout=6, before_sig=None) -> Any:
-        """Chờ giao diện video xuất hiện và kiểm tra tính khả dụng của video."""
+    def wait_video_loaded(
+        self,
+        package=None,
+        timeout=6,
+        before_sig=None,
+    ) -> Any:
+        """
+        Chờ giao diện video xuất hiện và kiểm tra tính khả dụng của video.
+
+        Tính đúng đắn của video dựa vào DeepLink intent: khi `open_tiktok_video`
+        mở `snssdk://aweme/detail/<id>`, chính TikTok là bên resolve video đúng
+        theo ID. UI nhiều màn hình không hiển thị username dạng text, nên KHÔNG
+        kiểm tra handle ở đây (nếu kiểm sẽ skip mọi job Like).
+
+        Trả về:
+        - True: video đã hiển thị (và khác video đang phát trước đó nếu có before_sig).
+        - "unavailable": TikTok hiển thị thông báo lỗi (video bị xóa/riêng tư...).
+        - "unchanged": bắn deeplink thành công nhưng màn hình không đổi sang video
+          đích (sig trùng INTÓC 3s) -> video đích gần như chắc chắn đã bị xóa/
+          không mở được. TikTok build trill KHÔNG hiện trang lỗi cho video bị xóa.
+        - False: hết thời gian chờ, không xác định được video mới.
+        """
         deadline = time.time() + timeout
         dismissed = False
+        video_loaded = False
+        unchanged_since = None
 
         error_keywords = [
-            "không khả dụng", "không tồn tại", "đã bị xóa", "riêng tư",
-            "không thể phát", "unavailable", "removed", "private",
-            "không tìm thấy", "video này không khả dụng", "video không tồn tại"
+            "video này không khả dụng", "video không khả dụng",
+            "video không tồn tại", "không tìm thấy video này",
+            "video đã bị xóa", "video này đã bị xóa", "không thể phát video",
+            "tài khoản này là riêng tư", "tài khoản riêng tư",
+            "this video is unavailable", "video is unavailable",
+            "video is private", "video has been removed",
+            "this video has been removed", "sorry, this video",
         ]
 
         while time.time() < deadline:
@@ -355,7 +507,7 @@ class AdbController:
                         if kw in text or kw in desc:
                             return "unavailable"
 
-                # 2. Kiểm tra xem video mới đã xuất hiện chưa
+                # 2. Kiểm tra video đã xuất hiện chưa
                 cur_title, cur_desc = "", ""
                 has_like_btn = False
 
@@ -365,30 +517,40 @@ class AdbController:
                     res = (node.get("resource-id") or "").strip()
                     d_desc = (node.get("content-desc") or "").strip().lower()
                     text = (node.get("text") or "").strip()
+                    clickable = (node.get("clickable") or "").strip().lower() == "true"
 
                     if res.endswith(":id/title") and text:
                         cur_title = text
                     elif res.endswith(":id/desc") and text:
                         cur_desc = text
-                    elif "lượt thích" in d_desc or d_desc == "thích" or res.endswith(":id/g8m") or res.endswith(":id/g86"):
+                    elif (
+                        d_desc in LIKE_LABELS
+                        or d_desc in UNLIKE_LABELS
+                        or (clickable and any(res.endswith(rid) for rid in LIKE_RES_IDS))
+                    ):
                         has_like_btn = True
 
-                if before_sig and before_sig != ("", ""):
-                    if (cur_title, cur_desc) != before_sig and has_like_btn:
+                video_loaded = bool((cur_title or cur_desc) and has_like_btn)
+
+                if video_loaded:
+                    if not before_sig or before_sig == ("", ""):
                         return True
-                else:
-                    if (cur_title or cur_desc) and has_like_btn:
+                    if (cur_title, cur_desc) != before_sig:
                         return True
+                    # sig trùng: màn hình không đổi sau deeplink
+                    # (deeplink thất bại hoặc đích trùng video đang phát).
+                    if unchanged_since is None:
+                        unchanged_since = time.time()
+                    elif time.time() - unchanged_since >= 4.0:
+                        # Video đích bất động suốt 4s sau khi bắn intent
+                        # (video tốt thường đổi trang trong 1-3s):
+                        # gần như chắc chắn là video bị xóa/chết.
+                        return "unchanged"
 
             if not dismissed and (time.time() > deadline - timeout / 2):
                 if self.dismiss_popups(package=package):
                     dismissed = True
             time.sleep(0.4)
-
-        if before_sig and before_sig != ("", ""):
-            cur_sig = self.get_current_video_info(package=package)
-            if cur_sig == before_sig:
-                return "unavailable"
 
         return False
 
@@ -413,6 +575,16 @@ class AdbController:
 
         if state != "not_liked" or not pos:
             return "video_unavailable"
+
+        # Chờ video ổn định trước khi bấm: sau deeplink, icon Like có thể hiển thị
+        # trước khi fragment sẵn sàng nhận tương tác (tap sớm bị nuốt).
+        time.sleep(1.0)
+        state, pos_check = self.get_like_state(package, compressed=True)
+        if state == "liked":
+            # Trạng thái đã đổi trong lúc chờ -> không bấm (tránh hủy tim)
+            return "already"
+        if state == "not_liked" and pos_check:
+            pos = pos_check
 
         self.tap(*pos)
 
@@ -439,6 +611,8 @@ class AdbController:
 
         # 0. Ưu tiên nhận diện nút Follow đặc trưng của Instagram (ID: profile_header_follow_button)
         for node in self._tree.iter("*"):
+            if package and node.get("package") != package:
+                continue
             res_id = (node.get("resource-id") or "").strip()
             if "profile_header_follow_button" in res_id:
                 label = self._label(node)
@@ -489,11 +663,16 @@ class AdbController:
 
     def wait_handle(self, handle: str, package=None, timeout=6) -> bool:
         """Chờ username/handle của profile xuất hiện trên màn hình."""
+        if not handle:
+            return False
         if "/" in handle:
             m = re.search(r"@([a-zA-Z0-9_.-]+)", handle)
             if m:
                 handle = m.group(1)
         handle = handle.lstrip("@").lower()
+        if not handle or handle.isdigit():
+            # Không thể đối chiếu handle nếu job chỉ cung cấp UID số.
+            return True
         pattern = re.compile(r"(?<![\w.])@?" + re.escape(handle) + r"(?![\w.])")
 
         deadline = time.time() + timeout
@@ -531,6 +710,9 @@ class AdbController:
         if dry:
             return "not_followed"
 
+        if not pos:
+            return "unknown"
+
         # Bấm nút Follow
         self.tap(*pos)
 
@@ -554,12 +736,10 @@ class AdbController:
             time.sleep(1.0)
 
             # Đảm bảo app mục tiêu vẫn đang ở tiền cảnh, nếu thoát ra Home thì mở lại
-            if package_name:
-                current = self.shell("dumpsys window | grep mCurrentFocus")
-                if package_name not in current:
-                    self.shell(f"monkey -p {package_name} -c android.intent.category.LAUNCHER 1")
-                    time.sleep(2.0)
-                    self.dismiss_popups(package=package_name)
+            if package_name and self.current_package() != package_name:
+                self.shell(f"monkey -p {package_name} -c android.intent.category.LAUNCHER 1")
+                time.sleep(2.0)
+                self.dismiss_popups(package=package_name)
 
             w, h = self.get_screen_size()
             x = w // 2
@@ -570,5 +750,5 @@ class AdbController:
                 duration = random.randint(220, 320)
                 self.swipe(x, start_y, x, end_y, duration=duration)
             time.sleep(random.uniform(1.8, 3.0))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"{YELLOW}[ADB]{RESET} Bỏ qua anti-ban do lỗi thiết bị: {e}")

@@ -1,18 +1,21 @@
 """
-core/ui.py — Giao diện Console Hiện Đại Tích Hợp Thư Viện Rich
-=============================================================
-Cung cấp các thành phần giao diện chất lượng cao:
-  - Banner chào đón bo viền gradient
-  - Bảng tổng quan phiên làm việc (Session Overview)
-  - Menu lựa chọn nền tảng & chế độ job
-  - Bảng danh sách tài khoản liên kết
-  - Khung báo cáo tổng kết phiên (Session Report)
-  - Huy hiệu (Badges) hiển thị tiến trình job
-  - Cơ chế dự phòng (Fallback) tự động nếu môi trường chưa cài rich
+core/ui.py — Giao diện Console "Premium" cho Follow4Follow Auto Runner
+=====================================================================
+Ngôn ngữ thiết kế:
+  - Banner gradient cyan → indigo → fuchsia (Rich) / ladder màu tương đương (fallback)
+  - Các panel bo viền thống nhất, tiêu đề nhấn mạnh ở viền trên
+  - Menu dạng danh sách có phụ đề gợi ý & chú thích decode ý nghĩa
+  - Session Overview / PREFLIGHT / Summary có bullet icon + bar trực quan
+  - Fallback thủ công (không cần rich) vẽ khung Unicode tự co giãn theo nội dung.
+
+Export (API ổn định cho các module khác):
+  print_banner, render_session_overview, render_platform_menu,
+  render_job_type_menu, render_saved_config_menu, render_preflight,
+  render_accounts_table, render_summary_report, HAS_RICH, console, box, Panel
 """
 
 import sys
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Sequence, Tuple, Union
 
 # Đảm bảo UTF-8 trên Windows console
 if sys.platform == "win32":
@@ -21,80 +24,191 @@ if sys.platform == "win32":
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# Thử nạp thư viện rich
+from core.helpers import (
+    CYAN, GREEN, YELLOW, RED, WHITE, BOLD, DIM, RESET, strip_ansi,
+)
+
+# ── Thử nạp thư viện rich ────────────────────────────────────────────────
 try:
-    from rich.console import Console
+    from rich.console import Console, Group
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
     from rich.align import Align
     from rich import box
     HAS_RICH = True
-    console = Console(force_terminal=True, legacy_windows=False)
 except ImportError:
     HAS_RICH = False
-    console = None
+    Console = Panel = Table = Text = Align = Group = box = None
 
-from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET, BOLD, DIM
+console = Console() if HAS_RICH else None
 
+# Bật tắt màu fallback (rỗng khi stdout là pipe/file — được helpers quyết định)
+COLOR_ON = bool(GREEN)
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  ENGINE MÀU GRADIENT
+# ════════════════════════════════════════════════════════════════════════
+
+# Rich: interpolate hex giữa các điểm mốc
+_GRAD_HEX = ((0x22, 0xD3, 0xEE), (0x81, 0x8C, 0xF8), (0xE8, 0x79, 0xF9))
+# Fallback: ladder ANSI chuẩn (cyan → blue → magenta)
+_GRAD_ANSI = ("\033[96m", "\033[94m", "\033[95m")
+
+
+def _hex_at(t: float) -> str:
+    """Trả về mã màu hex theo vị trí tham số t ∈ [0, 1] trên gradient."""
+    t = max(0.0, min(1.0, t))
+    x = t * (len(_GRAD_HEX) - 1)
+    i = min(int(x), len(_GRAD_HEX) - 2)
+    f = x - i
+    a, b = _GRAD_HEX[i], _GRAD_HEX[i + 1]
+    return "#{:02x}{:02x}{:02x}".format(*(
+        round(a[k] + (b[k] - a[k]) * f) for k in range(3)
+    ))
+
+
+def _grad_ansi(pos: int, total: int) -> str:
+    """Trả về mã màu ANSI follower theo gradient cho vị trí trong dãy."""
+    if not COLOR_ON or total <= 1:
+        return ""
+    idx = min(int(pos / (total - 1) * (len(_GRAD_ANSI) - 1)), len(_GRAD_ANSI) - 1)
+    return _GRAD_ANSI[idx]
+
+
+def _bar(count: int, total: int, width: int = 10) -> str:
+    """Chuỗi bar ▰/▱ hiển thị tỉ lệ count/total với độ dài `width`."""
+    filled = 0 if total <= 0 else round(width * min(count, total) / max(total, 1))
+    return "▰" * int(filled) + "▱" * (width - int(filled))
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  KHUNG FALLBACK (không rich) — tự co giãn theo nội dung
+# ════════════════════════════════════════════════════════════════════════
+
+def _frame(title: str, lines: Sequence[Union[str, None]], _color=CYAN) -> None:
+    """Vẽ khung Unicode thủ công. Phần tử `None` trong `lines` vẽ đường phân cách '├────┤'."""
+    contents = [l for l in lines if isinstance(l, str)]
+    plain_max = max((len(strip_ansi(l)) for l in contents), default=0)
+    inner = max(50, plain_max + 4, len(title) + 6)
+
+    header_fill = max(3, inner - len(title) - 4)
+    print(f"\n{_color}╭─{RESET}{BOLD}{WHITE} {title} {RESET}{_color}{'─' * header_fill}╮{RESET}")
+    for line in lines:
+        if line is None:
+            print(f"{_color}├{'─' * inner}┤{RESET}")
+            continue
+        pad = " " * max(0, inner - 2 - len(strip_ansi(line)))
+        print(f"{_color}│{RESET}  {line}{pad}{_color}│{RESET}")
+    print(f"{_color}╰{'─' * inner}╯{RESET}")
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  1. BANNER
+# ════════════════════════════════════════════════════════════════════════
 
 def print_banner():
-    """Hiển thị màn hình chào mừng thương hiệu Follow4Follow."""
-    if HAS_RICH and console:
-        banner_text = Text()
-        banner_text.append("FOLLOW4FOLLOW  /  AUTO RUNNER\n", style="bold white")
-        banner_text.append("◆  MULTI-PLATFORM AUTOMATION TOOL  ◆\n", style="bold green")
-        banner_text.append("TikTok  •  Instagram  •  PC  •  Android (Termux)\n", style="cyan")
-        banner_text.append("Console Interface  •  Version 2.0", style="dim yellow")
+    """Banner thương hiệu có gradient theo từng ký tự (Rich) / ladder màu (fallback)."""
+    title = "FOLLOW4FOLLOW"
 
+    if HAS_RICH and console:
+        big = Text()
+        for i, ch in enumerate(title):
+            big.append(ch, style=f"bold {_hex_at(i / max(len(title) - 1, 1))}")
+        sub = Text()
+        sub.append("◆ ", style="bold yellow")
+        sub.append("MULTI-PLATFORM AUTO RUNNER", style="bold white")
+        sub.append(" ◆", style="bold yellow")
+        chips = Text()
+        chips.append("TikTok", style="bold cyan")
+        chips.append("  ✦  ", style="dim")
+        chips.append("Instagram", style="bold fuchsia")
+        chips.append("  ✦  ", style="dim")
+        chips.append("Android (Termux)", style="bold green")
+        meta = Text()
+        meta.append("Console UI v2.0", style="dim yellow")
+        meta.append("  •  ", style="dim")
+        meta.append("PC / Linux / Android", style="dim")
+
+        body = Group(
+            Align.center(big),
+            Align.center(sub),
+            Align.center(chips),
+            Align.center(meta),
+        )
         panel = Panel(
-            Align.center(banner_text),
-            box=box.ROUNDED,
+            body,
+            box=box.DOUBLE,
             border_style="bold cyan",
             padding=(1, 4),
-            expand=False,
         )
         console.print()
         console.print(Align.center(panel))
         console.print()
     else:
-        width = 62
+        lines = [
+            "".join(
+                f"{_grad_ansi(i, len(title))}{BOLD}{ch}{RESET}"
+                for i, ch in enumerate(title)
+            ),
+            f"{YELLOW}◆{RESET} {WHITE}MULTI-PLATFORM AUTO RUNNER{RESET} {YELLOW}◆{RESET}",
+            (
+                f"{CYAN}TikTok{RESET}  {DIM}✦  {RESET}"
+                f"{YELLOW}Instagram{RESET}  {DIM}✦  {RESET}"
+                f"{GREEN}Android (Termux){RESET}"
+            ),
+            f"{DIM}Console UI v2.0  •  PC / Linux / Android{RESET}",
+        ]
+        width = max(len(strip_ansi(l)) for l in lines) + 8
+
         print()
         print(f"{CYAN}╭{'─' * width}╮{RESET}")
-        print(f"{CYAN}│{RESET}{WHITE}{'FOLLOW4FOLLOW  /  AUTO RUNNER':^{width}}{RESET}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}{GREEN}{'◆':>5}  {'MULTI-PLATFORM AUTOMATION TOOL':<53}{RESET}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}{'TikTok  •  Instagram  •  PC  •  Android / Termux':^{width}}{CYAN}│{RESET}")
-        print(f"{CYAN}├{'─' * width}┤{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}●{RESET}  {WHITE}Console interface{RESET}                         {CYAN}Version 2.0{RESET}  {CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}{' ' * width}{CYAN}│{RESET}")
+        for line in lines:
+            plain = len(strip_ansi(line))
+            left = (width - plain) // 2
+            right = width - plain - left
+            print(f"{CYAN}│{RESET}{' ' * left}{line}{' ' * right}{CYAN}│{RESET}")
+        print(f"{CYAN}│{RESET}{' ' * width}{CYAN}│{RESET}")
         print(f"{CYAN}╰{'─' * width}╯{RESET}")
         print()
 
 
+# ════════════════════════════════════════════════════════════════════════
+#  2. SESSION OVERVIEW
+# ════════════════════════════════════════════════════════════════════════
+
 def render_session_overview(cfg: Dict[str, Any]):
-    """Hiển thị bảng tóm tắt cấu hình hiện tại trước khi bắt đầu."""
+    """Bảng tóm tắt cấu hình phiên chạy hiển thị trước khi bắt đầu."""
     user = cfg.get("f4f_user", "N/A")
-    plat = cfg.get("platform", "tiktok").upper()
-    job_mode = cfg.get("job_type", "all").upper() if plat == "TIKTOK" else "FOLLOW (+35 XU)"
-    max_jobs = str(cfg.get("max_jobs_per_session", 50))
-    delay_str = f"{cfg.get('delay_min', 8)}-{cfg.get('delay_max', 18)}s"
+    plat = str(cfg.get("platform", "tiktok")).upper()
+    job_mode = (
+        str(cfg.get("job_type", "all")).upper() if plat == "TIKTOK" else "FOLLOW ONLY"
+    )
+    max_jobs = int(cfg.get("max_jobs_per_session", 50))
+    delay_str = f"{cfg.get('delay_min', 8)} – {cfg.get('delay_max', 18)}s"
 
     every_n = cfg.get("human_behavior_every_n_jobs", 5)
     times = cfg.get("human_behavior_scroll_times", 2)
-    hb_desc = f"Sau {every_n} jobs -> Lướt {times} video" if cfg.get("human_behavior", True) else "Tắt"
+    hb_desc = (
+        f"Kích hoạt ngẫu nhiên {every_n}±2 job → lướt {times}±1 video"
+        if cfg.get("human_behavior", True) else "Đang tắt"
+    )
 
     if HAS_RICH and console:
         grid = Table.grid(padding=(0, 2))
-        grid.add_column(style="bold cyan", width=12)
+        grid.add_column(style="bold cyan", justify="right", width=12)
         grid.add_column(style="white")
 
-        grid.add_row("ACCOUNT", f"[bold green]{user}[/bold green]")
-        grid.add_row("PLATFORM", f"[bold yellow]{plat}[/bold yellow]   [bold cyan]MODE[/bold cyan]  [bold white]{job_mode}[/bold white]")
-        grid.add_row("JOB LIMIT", f"[bold yellow]{max_jobs} jobs[/bold yellow]   [bold cyan]DELAY[/bold cyan]  [bold white]{delay_str}[/bold white]")
-        grid.add_row("ANTI-BAN", f"[italic yellow]{hb_desc}[/italic yellow]")
+        grid.add_row("👤  ACCOUNT", f"[bold green]{user}[/bold green]")
+        grid.add_row("📱  PLATFORM", f"[bold yellow]{plat}[/bold yellow]   [dim]│[/dim]   MODE [bold white]{job_mode}[/bold white]")
+        grid.add_row("🎯  JOB LIMIT", f"[bold yellow]{max_jobs} jobs[/bold yellow]   [dim]│[/dim]   DELAY [bold white]{delay_str}[/bold white]")
+        grid.add_row("🛡  ANTI-BAN", f"[italic yellow]{hb_desc}[/italic yellow]")
 
         panel = Panel(
             grid,
-            title="[bold cyan]SESSION OVERVIEW[/bold cyan]",
+            title=f"[bold cyan]SESSION OVERVIEW[/bold cyan] [dim]— {plat}[/dim]",
             border_style="cyan",
             box=box.ROUNDED,
             expand=False,
@@ -102,130 +216,260 @@ def render_session_overview(cfg: Dict[str, Any]):
         )
         console.print(panel)
     else:
-        print(f"{CYAN}╭─ {WHITE}SESSION OVERVIEW{CYAN} ───────────────────────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}ACCOUNT{RESET}    {GREEN}{user:<48}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}PLATFORM{RESET}   {YELLOW}{plat:<16}{RESET}{CYAN}MODE{RESET}   {WHITE}{job_mode:<23}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}JOB LIMIT{RESET}  {WHITE}{max_jobs:<8}{RESET}  {CYAN}DELAY{RESET}  {WHITE}{delay_str}{RESET}{' ' * 18}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {CYAN}BROWSE{RESET}     {YELLOW}{hb_desc:<48}{CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+        lab_acct = f"{CYAN}ACCOUNT{RESET}"
+        lab_plat = f"{CYAN}PLATFORM{RESET}"
+        lab_job = f"{CYAN}JOB LIMIT{RESET}"
+        lab_ab = f"{CYAN}ANTI-BAN{RESET}"
+        rows = [
+            f"{lab_acct}      {GREEN}{user}{RESET}",
+            f"{lab_plat}     {YELLOW}{plat}{RESET}{DIM} │ {RESET}MODE {WHITE}{job_mode}{RESET}",
+            f"{lab_job}  {YELLOW}{max_jobs} jobs{RESET}{DIM} │ {RESET}DELAY {WHITE}{delay_str}{RESET}",
+            f"{lab_ab}     {YELLOW}{hb_desc}{RESET}",
+            None,
+            f"{DIM}Sẵn sàng! Về terminal để theo dõi stream job...{RESET}",
+        ]
+        _frame("SESSION OVERVIEW", rows)
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  3. MENU — NỀN TẢNG / LOẠI JOB / CẤU HÌNH CŨ
+# ════════════════════════════════════════════════════════════════════════
+
+def _rich_menu(title: str, opts: Sequence[Tuple[str, str, str]]) -> None:
+    """Render menu bằng Rich: opts = (key, name, desc)."""
+    if not (HAS_RICH and console):
+        return
+    grid = Table.grid(padding=(0, 1))
+    grid.add_column(style="bold yellow", width=5)
+    grid.add_column(style="bold white", width=17)
+    grid.add_column(style="dim cyan")
+
+    for key, name, desc in opts:
+        grid.add_row(f"[{key}]", name, desc)
+
+    console.print()
+    console.print(
+        Panel(
+            grid,
+            title=f"[bold cyan]{title}[/bold cyan]",
+            border_style="cyan",
+            box=box.ROUNDED,
+            expand=False,
+            padding=(0, 2),
+        )
+    )
 
 
 def render_platform_menu():
     """Hiển thị menu chọn nền tảng kiếm coin."""
     if HAS_RICH and console:
-        grid = Table.grid(padding=(0, 2))
-        grid.add_column(style="bold yellow", width=6)
-        grid.add_column(style="bold white", width=14)
-        grid.add_column(style="dim cyan")
-
-        grid.add_row("[1]", "TikTok", "Follow tài khoản + Like video tự động")
-        grid.add_row("[2]", "Instagram", "Follow trang cá nhân (+35 xu/job)")
-
-        panel = Panel(
-            grid,
-            title="[bold cyan]CHỌN NỀN TẢNG[/bold cyan]",
-            border_style="cyan",
-            box=box.ROUNDED,
-            expand=False,
-            padding=(0, 2),
-        )
-        console.print()
-        console.print(panel)
+        _rich_menu("CHỌN NỀN TẢNG", [
+            ("1", "TikTok",     "Follow +26 xu • Like +10 xu/video"),
+            ("2", "Instagram",  "Follow trang cá nhân +35 xu/job"),
+        ])
     else:
-        print(f"\n{CYAN}╭─ {WHITE}CHỌN NỀN TẢNG{CYAN} ─────────────────────────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}TikTok{RESET}      {CYAN}Follow tài khoản + Like video{RESET}             {CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {GREEN}Instagram{RESET}  {CYAN}Follow trang cá nhân (+35 xu){RESET}            {CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+        k1, k2 = f"{YELLOW}[1]{RESET}", f"{YELLOW}[2]{RESET}"
+        n1, n2 = f"{WHITE}TikTok{RESET}", f"{YELLOW}Instagram{RESET}"
+        d1, d2 = f"{CYAN}Follow +26 xu • Like +10 xu/video{RESET}", \
+                 f"{CYAN}Follow trang cá nhân +35 xu/job{RESET}"
+        _frame("CHỌN NỀN TẢNG", [
+            f"{k1}  {n1:<22} {d1}",
+            f"{k2}  {n2:<22} {d2}",
+        ])
 
 
 def render_job_type_menu():
     """Hiển thị menu chọn loại job TikTok."""
     if HAS_RICH and console:
-        grid = Table.grid(padding=(0, 2))
-        grid.add_column(style="bold yellow", width=6)
-        grid.add_column(style="bold white", width=16)
-        grid.add_column(style="dim cyan")
-
-        grid.add_row("[1]", "FOLLOW ONLY", "Chỉ làm job follow tài khoản")
-        grid.add_row("[2]", "LIKE ONLY", "Chỉ làm job thả tim (like) video")
-        grid.add_row("[3]", "MIXED MODE", "Kết hợp cả Follow và Like video")
-
-        panel = Panel(
-            grid,
-            title="[bold cyan]CHẾ ĐỘ JOB TIKTOK[/bold cyan]",
-            border_style="cyan",
-            box=box.ROUNDED,
-            expand=False,
-            padding=(0, 2),
-        )
-        console.print()
-        console.print(panel)
+        _rich_menu("CHẾ ĐỘ JOB TIKTOK", [
+            ("1", "FOLLOW ONLY",  "Chỉ làm job follow tài khoản"),
+            ("2", "LIKE ONLY",    "Chỉ làm job thả tim (like) video"),
+            ("3", "MIXED MODE",   "Kết hợp cả Follow và Like video"),
+        ])
     else:
-        print(f"\n{CYAN}╭─ {WHITE}CHẾ ĐỘ JOB TIKTOK{CYAN} ──────────────────────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}[1]{RESET}  {WHITE}FOLLOW ONLY{RESET}   {CYAN}Chỉ follow tài khoản{RESET}                   {CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}[2]{RESET}  {WHITE}LIKE ONLY{RESET}     {CYAN}Chỉ like video{RESET}                         {CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}[3]{RESET}  {GREEN}MIXED MODE{RESET}    {CYAN}Kết hợp Follow + Like{RESET}                {CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}")
+        k = [f"{YELLOW}[{c}]{RESET}" for c in "12"]
+        k3 = f"{YELLOW}[3]{RESET}"
+        rows = [
+            f"{k[0]}  {WHITE}{'FOLLOW ONLY':<22}{RESET} {CYAN}Chỉ làm job follow tài khoản{RESET}",
+            f"{k[1]}  {WHITE}{'LIKE ONLY':<22}{RESET} {CYAN}Chỉ làm job like video{RESET}",
+            f"{k3}  {GREEN}{'MIXED MODE':<22}{RESET} {CYAN}Kết hợp Follow + Like{RESET}",
+        ]
+        _frame("CHẾ ĐỘ JOB TIKTOK", rows)
 
+
+def render_saved_config_menu():
+    """Menu hỏi dùng lại cấu hình đã lưu hay cài đặt lại."""
+    if HAS_RICH and console:
+        _rich_menu("CẤU HÌNH NÀY LẦN?", [
+            ("1", "Dùng cũ",   "Giữ nguyên mọi cài đặt trong config.json"),
+            ("2", "Cài lại",   "Nhập lại từ đầu: tài khoản, số job, delay, anti-ban"),
+        ])
+    else:
+        k1, k2 = f"{YELLOW}[1]{RESET}", f"{YELLOW}[2]{RESET}"
+        n1, n2 = f"{WHITE}{'Dùng cũ':<22}{RESET}", f"{GREEN}{'Cài lại':<22}{RESET}"
+        _frame("CẤU HÌNH NÀY LẦN?", [
+            f"{k1}  {n1} {CYAN}Giữ nguyên cài đặt đã lưu{RESET}",
+            f"{k2}  {n2} {CYAN}Nhập lại từ đầu (tài khoản, job, delay){RESET}",
+        ])
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  4. PREFLIGHT (thiết bị sẵn sàng)
+# ════════════════════════════════════════════════════════════════════════
+
+_PREF_STYLE = {
+    "Thiết bị": ("bold green", "✓"),
+    "Serial":   ("cyan",       "◇"),
+    "Android":  ("white",      "◇"),
+    "Màn hình": ("bold yellow", "◇"),
+}
+
+
+def render_preflight(title: str, rows) -> None:
+    """Bảng nhỏ tóm tắt trạng thái sẵn sàng. `rows`: (label, value) với value là text thuần."""
+    if HAS_RICH and console:
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style="bold cyan", justify="right", width=12)
+        grid.add_column(style="white")
+        for label, value in rows:
+            style, icon = _PREF_STYLE.get(str(label), ("white", "◇"))
+            grid.add_row(
+                f"{icon}  {label}",
+                f"[{style}]{strip_ansi(str(value))}[/{style}]",
+            )
+        console.print(
+            Panel(
+                grid,
+                title=f"[bold green]✔ {title}[/bold green]",
+                border_style="green",
+                box=box.ROUNDED,
+                expand=False,
+                padding=(0, 2),
+            )
+        )
+    else:
+        pairs = []
+        for label, value in rows:
+            label_s = str(label)
+            icon = _PREF_STYLE.get(label_s, ("white", "◇"))[1]
+            style = _PREF_STYLE.get(label_s, (None, "◇"))[0]
+            ansi = {"bold green": GREEN + BOLD, "cyan": CYAN,
+                    "white": WHITE, "bold yellow": YELLOW + BOLD}.get(style or "", "")
+            pairs.append(
+                f"{icon}  {CYAN}{label_s:<12}{RESET}{ansi}{strip_ansi(str(value))}{RESET}"
+            )
+        _frame(f"✔ {title}", pairs)
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  5. BẢNG TÀI KHOẢN LIÊN KẾT
+# ════════════════════════════════════════════════════════════════════════
 
 def render_accounts_table(platform_name: str, accounts: List[Dict[str, Any]], default_idx: int = 1):
-    """Hiển thị danh sách tài khoản mạng xã hội liên kết dạng bảng Rich."""
+    """Danh sách tài khoản đã liên kết (bảng zebra, badge trạng thái)."""
     if HAS_RICH and console:
         table = Table(
             box=box.ROUNDED,
+            safe_box=False,
             border_style="cyan",
-            title=f"[bold cyan]TÀI KHOẢN {platform_name.upper()} ĐÃ LIÊN KẾT[/bold cyan]",
             padding=(0, 1),
+            header_style="bold white on #0e7490",
         )
         table.add_column("#", style="bold yellow", justify="center")
         table.add_column("Tài khoản", style="bold white")
         table.add_column("ID F4F", style="cyan", justify="center")
-        table.add_column("Trạng thái", style="white", justify="center")
+        table.add_column("Trạng thái", justify="center")
         table.add_column("Ghi chú", style="bold green", justify="center")
 
         for idx, acc in enumerate(accounts, start=1):
             name = acc.get("username") or acc.get("name") or "N/A"
             acc_id = str(acc.get("id", ""))
-            status = acc.get("status", "Hoạt động")
-            status_style = "[green]Hoạt động[/green]" if status == "Hoạt động" else f"[yellow]{status}[/yellow]"
-            note = "★ Mặc định" if idx == default_idx else ""
-            table.add_row(f"{idx:02}", f"@{name}", acc_id, status_style, note)
+            status = str(acc.get("status") or "Hoạt động").strip()
+            status_ok = status.lower() in ("hoạt động", "active", "đang hoạt động")
+            dot, style = ("●", "bold green") if status_ok else ("◌", "bold yellow")
+            badge = f"[{style}]{dot} {status}[/{style}]"
+            star = "[bold green]★ Mặc định[/bold green]" if idx == default_idx else ""
+            row_style = "dim" if idx % 2 == 0 else None
+            table.add_row(
+                f"{idx:02}", f"@{name}", acc_id, badge, star, style=row_style
+            )
 
         console.print()
+        console.rule(
+            f"[bold cyan]TÀI KHOẢN {platform_name.upper()} ĐÃ LIÊN KẾT[/bold cyan]",
+            style="cyan",
+        )
         console.print(table)
     else:
-        print(f"\n{CYAN}╭─ {WHITE}TÀI KHOẢN {platform_name.upper()} ĐÃ LIÊN KẾT{CYAN} ───────────────────────────╮{RESET}")
+        # Fallback: tính độ rộng cột động cho thẳng hàng
+        names = [(a.get("username") or a.get("name") or "N/A") for a in accounts]
+        ids = [str(a.get("id", "")) for a in accounts]
+        w_name = max(max(map(len, names)) + 1, 6)
+        w_id = max(max(map(len, ids)) + 1, 4)
+        rows = []
         for idx, acc in enumerate(accounts, start=1):
-            status = acc.get("status", "Hoạt động")
-            name = acc.get("username") or acc.get("name") or "N/A"
-            acc_id = acc.get("id", "")
-            is_def = f" {GREEN}(Mặc định){RESET}" if idx == default_idx else ""
-            print(f"{CYAN}│{RESET}  {YELLOW}[{idx:02}]{RESET}  {WHITE}@{name:<24}{RESET} {CYAN}ID:{RESET} {acc_id:<8} {CYAN}•{RESET} {status:<12}{is_def} {CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────────╯{RESET}")
+            name = names[idx - 1]
+            status = str(acc.get("status") or "Hoạt động").strip()
+            status_ok = status.lower() in ("hoạt động", "active", "đang hoạt động")
+            dot, dot_c = ("●", GREEN) if status_ok else ("◌", YELLOW)
+            star = f"{GREEN}★ Mặc định{RESET}" if idx == default_idx else ""
+            rows.append(
+                f"{YELLOW}[{idx:02}]{RESET}  "
+                f"{WHITE}@{name:<{w_name - 1}}{RESET} "
+                f"{CYAN}{ids[idx - 1]:<{w_id}}{RESET} "
+                f"{dot_c}{dot} {status}{RESET}  {star}"
+            )
+        _frame(f"TÀI KHOẢN {platform_name.upper()} ĐÃ LIÊN KẾT", rows)
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  6. BÁO CÁO CUỐI PHIÊN
+# ════════════════════════════════════════════════════════════════════════
+
+_SUMMARY_ROWS = [
+    ("✓", "Follow thành công",  "followed",      GREEN,  "bold green"),
+    ("♥", "Like thành công",    "liked",         YELLOW, "bold magenta"),
+    ("●", "Đã thực hiện trước", "already",       YELLOW, "yellow"),
+    ("↷", "Đã bỏ qua",          "skipped",       CYAN,   "dim yellow"),
+    ("!", "Lỗi",                "errors",        RED,    "bold red"),
+]
 
 
 def render_summary_report(platform_name: str, stats: Dict[str, Any], log_file: str):
-    """Hiển thị bảng báo cáo kết quả phiên chạy (Session Report)."""
+    """Báo cáo kết quả phiên chạy có bar trực quan + tổng số & coin nổi bật."""
     s = stats
     total = s["followed"] + s["liked"] + s["already"] + s["skipped"] + s["errors"]
 
     if HAS_RICH and console:
         table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
-        table.add_column("Trạng thái", style="white", width=26)
-        table.add_column("Số lượng", justify="right", style="bold", width=12)
+        table.add_column("L", width=1, justify="center")
+        table.add_column("Trạng thái", style="white", width=22)
+        table.add_column("Số lượng", justify="right", width=8)
+        table.add_column("Bar", justify="left", width=12)
 
-        table.add_row("[bold green]✓ Follow thành công[/bold green]", f"[bold green]{s['followed']}[/bold green]")
-        table.add_row("[bold magenta]♥ Like thành công[/bold magenta]", f"[bold magenta]{s['liked']}[/bold magenta]")
-        table.add_row("[yellow]● Đã thực hiện trước[/yellow]", f"[yellow]{s['already']}[/yellow]")
-        table.add_row("[dim yellow]↷ Đã bỏ qua[/dim yellow]", f"[dim yellow]{s['skipped']}[/dim yellow]")
-        table.add_row("[bold red]! Lỗi[/bold red]", f"[bold red]{s['errors']}[/bold red]")
+        for icon, label, key, _f, rich_style in _SUMMARY_ROWS:
+            count = s[key]
+            table.add_row(
+                f"[{rich_style}]{icon}[/{rich_style}]",
+                f"[{rich_style}]{label}[/{rich_style}]",
+                f"[{rich_style}]{count}[/{rich_style}]",
+                f"[{rich_style}]{_bar(count, total, 8)}[/{rich_style}]",
+            )
         table.add_section()
-        table.add_row("[bold white]Tổng job xử lý[/bold white]", f"[bold white]{total}[/bold white]")
-        table.add_row("[bold green]Coin nhận được[/bold green]", f"[bold green]~{s['coins_earned']} xu[/bold green]")
+        table.add_row(
+            "", "[bold white]Tổng job xử lý[/bold white]",
+            f"[bold white]{total}[/bold white]",
+            f"[bold cyan]{_bar(total, total, 8)}[/bold cyan]",
+        )
+        table.add_row(
+            "", "[bold white]Coin nhận được[/bold white]",
+            f"[bold bright_yellow]~{s['coins_earned']} xu[/bold bright_yellow]",
+            "[dim]💰[/dim]",
+        )
 
         panel = Panel(
             table,
-            title=f"[bold cyan]SESSION REPORT ({platform_name.upper()})[/bold cyan]",
+            title=f"[bold cyan]SESSION REPORT — {platform_name.upper()}[/bold cyan]",
             border_style="cyan",
             box=box.ROUNDED,
             expand=False,
@@ -235,15 +479,24 @@ def render_summary_report(platform_name: str, stats: Dict[str, Any], log_file: s
         console.print(panel)
         console.print(f"[dim]File log chi tiết: {log_file}[/dim]\n")
     else:
-        plat_tag = f"SESSION REPORT ({platform_name.upper()})"
-        print(f"\n{CYAN}╭─ {WHITE}{plat_tag:<32}{CYAN} ─────────────────────╮{RESET}")
-        print(f"{CYAN}│{RESET}  {GREEN}✓{RESET} Follow thành công   {GREEN}{s['followed']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {GREEN}♥{RESET} Like thành công     {GREEN}{s['liked']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}●{RESET} Đã thực hiện trước  {YELLOW}{s['already']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {YELLOW}↷{RESET} Đã bỏ qua           {YELLOW}{s['skipped']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  {RED}!{RESET} Lỗi                 {RED}{s['errors']:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}├────────────────────────────────────────────────────────────┤{RESET}")
-        print(f"{CYAN}│{RESET}  Tổng job xử lý       {WHITE}{total:>7}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}│{RESET}  Coin nhận được       {GREEN}~{s['coins_earned']:>6}{RESET}{' ' * 28}{CYAN}│{RESET}")
-        print(f"{CYAN}╰────────────────────────────────────────────────────────────╯{RESET}\n")
-        print(f"File log chi tiết: {log_file}")
+        rows = []
+        for icon, label, key, color, _s in _SUMMARY_ROWS:
+            count = s[key]
+            lab = label[:20].ljust(20)
+            bar_col = color if COLOR_ON else ""
+            rows.append(
+                f"  {color}{icon}{RESET} {WHITE}{lab}{RESET}"
+                f"{color}{count:>5}{RESET}  {bar_col}{_bar(count, total, 8)}{RESET}"
+            )
+        rows.append(None)
+        lab_t = "Tổng job xử lý".ljust(20)
+        rows.append(
+            f"  {WHITE}{lab_t}{RESET}{WHITE}{total:>5}{RESET}  "
+            f"{CYAN if COLOR_ON else ''}{_bar(total, total, 8)}{RESET}"
+        )
+        lab_c = "Coin nhận được".ljust(20)
+        rows.append(
+            f"  {WHITE}{lab_c}{RESET}{GREEN}~{s['coins_earned']:>4} xu{RESET}"
+        )
+        _frame(f"SESSION REPORT — {platform_name.upper()}", rows)
+        print(f"\nFile log chi tiết: {log_file}\n")

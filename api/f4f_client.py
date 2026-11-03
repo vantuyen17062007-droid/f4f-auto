@@ -53,9 +53,10 @@ class ApiF4F:
         return headers
 
     def _req(self, method: str, path: str, retries: int = 2, **kwargs) -> Dict[str, Any]:
-        """Gửi HTTP request với cơ chế thử lại (retry) khi gặp lỗi mạng tạm thời."""
+        """Gửi HTTP request với cơ chế thử lại khi gặp lỗi mạng/5xx/429 tạm thời."""
         timeout = kwargs.pop("timeout", 15)
         last_err = None
+        retryable_status = {429, 500, 502, 503, 504}
 
         for attempt in range(retries + 1):
             try:
@@ -66,22 +67,52 @@ class ApiF4F:
                     timeout=timeout,
                     **kwargs,
                 )
-                data = resp.json()
 
-                status_code = data.get("status_code", resp.status_code)
+                try:
+                    data = resp.json()
+                except ValueError:
+                    if resp.status_code in retryable_status and attempt < retries:
+                        time.sleep(self._retry_delay(resp, attempt))
+                        continue
+                    raise RuntimeError(
+                        f"[{resp.status_code}] Phản hồi F4F không phải JSON hợp lệ."
+                    )
+
+                if not isinstance(data, dict):
+                    raise RuntimeError("Phản hồi F4F không đúng định dạng (JSON object).")
+
+                try:
+                    status_code = int(data.get("status_code") or resp.status_code)
+                except (TypeError, ValueError):
+                    status_code = resp.status_code
+
                 if status_code >= 400:
                     msg = data.get("message") or resp.text
+                    if status_code in retryable_status and attempt < retries:
+                        time.sleep(self._retry_delay(resp, attempt))
+                        continue
                     raise RuntimeError(f"[{status_code}] {msg}")
 
                 return data
             except requests.RequestException as e:
                 last_err = e
                 if attempt < retries:
-                    time.sleep(1.5)
+                    time.sleep(min(2 ** attempt, 5))
                     continue
                 raise RuntimeError(f"Lỗi kết nối F4F: {last_err}")
-            except Exception as e:
-                raise e
+
+        raise RuntimeError(f"Lỗi kết nối F4F: {last_err}")
+
+    @staticmethod
+    def _retry_delay(resp, attempt: int) -> float:
+        """Tính thời gian chờ, ưu tiên header Retry-After nếu server cung cấp."""
+        try:
+            retry_after = float(resp.headers.get("Retry-After", ""))
+            if retry_after > 0:
+                return min(retry_after, 30)
+        except (TypeError, ValueError):
+            pass
+        return min(1.5 * (2 ** attempt), 15)
 
     # ── XÁC THỰC & TÀI KHOẢN F4F ──────────────────────────────────────
     def login(self, username: str, password: str, verbose: bool = True) -> str:
@@ -91,7 +122,9 @@ class ApiF4F:
             "/user/auth/login",
             json={"username": username, "password": password},
         )
-        d = res["data"]
+        d = res.get("data") or {}
+        if not isinstance(d, dict) or not d.get("access_token") or not d.get("user"):
+            raise RuntimeError("Phản hồi đăng nhập F4F thiếu access_token hoặc user.")
         self.user = d["user"]
         self.token = d["access_token"]
 
@@ -111,14 +144,74 @@ class ApiF4F:
     def get_accounts(self, platform: str, page: int = 1) -> Dict[str, Any]:
         """Lấy danh sách nick đã liên kết theo nền tảng ('tiktok' | 'instagram' | 'facebook')."""
         plat = platform.lower().strip()
+        if plat not in self.PLATFORMS:
+            raise ValueError(f"Nền tảng không hợp lệ: {platform}")
         params = {"type": plat, "page": str(page)}
         return self._req("GET", "/user/account/list", params=params)
 
     def get_active_accounts(self, platform: str) -> List[Dict[str, Any]]:
-        """Lọc danh sách các tài khoản đang ở trạng thái 'Hoạt động'."""
-        res = self.get_accounts(platform)
-        acc_list = res.get("data", {}).get("data", [])
-        return [acc for acc in acc_list if acc.get("status") == "Hoạt động"]
+        """
+        Lấy toàn bộ tài khoản đang 'Hoạt động' (hỗ trợ phân trang).
+
+        API F4F có thể trả nhiều trang; chỉ đọc trang 1 sẽ bỏ sót tài khoản.
+        """
+        accounts: List[Dict[str, Any]] = []
+        seen_active = set()
+        seen_raw = set()
+        page = 1
+        max_pages = 50
+
+        while page <= max_pages:
+            res = self.get_accounts(platform, page)
+            data = res.get("data") or {}
+            if not isinstance(data, dict):
+                break
+
+            batch = data.get("data") or []
+            if not isinstance(batch, list) or not batch:
+                break
+
+            raw_before = len(seen_raw)
+            for acc in batch:
+                if not isinstance(acc, dict):
+                    continue
+                key = acc.get("id") or acc.get("username") or acc.get("name")
+                if key in seen_raw:
+                    continue
+                seen_raw.add(key)
+
+                status = str(acc.get("status") or "").strip().lower()
+                # Một số phản hồi cũ không có trường status: coi như đang hoạt động.
+                if status and status not in ("hoạt động", "đang hoạt động", "active"):
+                    continue
+                if key in seen_active:
+                    continue
+                seen_active.add(key)
+                accounts.append(acc)
+
+            # Nếu trang này không có thêm bản ghi mới -> dữ liệu đã lặp lại.
+            if len(seen_raw) == raw_before:
+                break
+
+            last_page = self._to_int(data.get("last_page"))
+            per_page = self._to_int(data.get("per_page"))
+            current_page = self._to_int(data.get("current_page")) or page
+
+            if last_page is not None and current_page >= last_page:
+                break
+            if per_page is not None and len(batch) < per_page:
+                break
+
+            page += 1
+
+        return accounts
+
+    @staticmethod
+    def _to_int(value) -> Optional[int]:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
     def get_acc_tik(self, page: int = 1) -> Dict[str, Any]:
         return self.get_accounts("tiktok", page)
@@ -139,6 +232,8 @@ class ApiF4F:
     ) -> Dict[str, Any]:
         """Lấy danh sách job kiếm coin từ F4F theo nền tảng."""
         plat = platform.lower().strip()
+        if plat not in self.PLATFORMS:
+            raise ValueError(f"Nền tảng không hợp lệ: {platform}")
         params = {
             "platform": plat,
             "type": type_job,
@@ -246,7 +341,15 @@ class ApiF4F:
         else:
             return self.skip_job_api("tiktok", arg1, arg2, str(arg3), arg4)
 
-    skip_job_fb = skip_job
+    def skip_job_fb(
+        self,
+        job_id: Union[int, str],
+        account_id: Union[int, str],
+        uid: str,
+        object_id: str,
+    ) -> Dict[str, Any]:
+        """Bỏ qua job Facebook không hợp lệ hoặc bị lỗi."""
+        return self.skip_job_api("facebook", job_id, account_id, uid, object_id)
 
 
 # Các alias tương thích

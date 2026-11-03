@@ -30,6 +30,10 @@ def main():
     print(f"\n{CYAN}[*] Đang phân giải link: {target}{RESET}")
     video_id, full_url = resolve_video_id(target)
 
+    if not video_id:
+        print(f"{RED}[!] Không trích xuất được Video ID từ: {target}{RESET}")
+        sys.exit(1)
+
     print(f"{GREEN}[✓] Kết quả:{RESET}")
     print(f"    - Video ID:  {CYAN}{video_id}{RESET}")
     print(f"    - Full URL:  {GREEN}{full_url}{RESET}")

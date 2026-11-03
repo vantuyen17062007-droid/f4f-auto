@@ -13,12 +13,13 @@ import sys
 import json
 import time
 import re
+import getpass
 from typing import Dict, Any
 
 from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
 from core.ui import (
-    render_session_overview,
     render_platform_menu,
+    render_saved_config_menu,
     render_job_type_menu,
     HAS_RICH,
     console,
@@ -58,6 +59,96 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "auto_clean_logs_days": 7,
 }
 
+# Các khóa lấy từ biến môi trường: không ghi đè/ghi chúng vào config.json.
+_ENV_CREDENTIAL_KEYS: set = set()
+
+
+def _is_tty() -> bool:
+    try:
+        return bool(sys.stdin and sys.stdin.isatty())
+    except Exception:
+        return False
+
+
+def _as_str(value, default: str = "") -> str:
+    if value is None:
+        return default
+    return str(value).strip()
+
+
+def _as_int(value, default: int, minimum: int = 0) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(number, minimum)
+
+
+def _as_bool(value, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes", "y", "on", "c", "co"):
+        return True
+    if text in ("0", "false", "no", "n", "off", "k", "khong"):
+        return False
+    return default
+
+
+def _validate_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Chuẩn hóa & kiểm tra kiểu dữ liệu cấu hình trước khi sử dụng."""
+    cfg["f4f_user"] = _as_str(cfg.get("f4f_user"), DEFAULT_CONFIG["f4f_user"])
+    cfg["f4f_pass"] = _as_str(cfg.get("f4f_pass"), DEFAULT_CONFIG["f4f_pass"])
+
+    platform = _as_str(cfg.get("platform"), DEFAULT_CONFIG["platform"]).lower()
+    cfg["platform"] = platform if platform in ("tiktok", "instagram") else "tiktok"
+
+    job_type = _as_str(cfg.get("job_type"), DEFAULT_CONFIG["job_type"]).lower()
+    cfg["job_type"] = job_type if job_type in ("all", "follow", "like") else "all"
+
+    for key in ("tiktok_uid", "instagram_username", "adb_serial",
+                "tiktok_package", "instagram_package"):
+        cfg[key] = _as_str(cfg.get(key), DEFAULT_CONFIG[key])
+
+    cfg["max_jobs_per_session"] = _as_int(
+        cfg.get("max_jobs_per_session"),
+        DEFAULT_CONFIG["max_jobs_per_session"], minimum=1,
+    )
+    cfg["delay_min"] = _as_int(
+        cfg.get("delay_min"), DEFAULT_CONFIG["delay_min"], minimum=0
+    )
+    cfg["delay_max"] = _as_int(
+        cfg.get("delay_max"), DEFAULT_CONFIG["delay_max"], minimum=cfg["delay_min"]
+    )
+    if cfg["delay_max"] < cfg["delay_min"]:
+        cfg["delay_max"] = cfg["delay_min"]
+
+    cfg["profile_load_timeout"] = _as_int(
+        cfg.get("profile_load_timeout"),
+        DEFAULT_CONFIG["profile_load_timeout"], minimum=1,
+    )
+    cfg["verify_timeout"] = _as_int(
+        cfg.get("verify_timeout"), DEFAULT_CONFIG["verify_timeout"], minimum=1
+    )
+    cfg["human_behavior"] = _as_bool(
+        cfg.get("human_behavior"), DEFAULT_CONFIG["human_behavior"]
+    )
+    cfg["human_behavior_every_n_jobs"] = _as_int(
+        cfg.get("human_behavior_every_n_jobs"),
+        DEFAULT_CONFIG["human_behavior_every_n_jobs"], minimum=1,
+    )
+    cfg["human_behavior_scroll_times"] = _as_int(
+        cfg.get("human_behavior_scroll_times"),
+        DEFAULT_CONFIG["human_behavior_scroll_times"], minimum=1,
+    )
+    cfg["auto_clean_logs_days"] = _as_int(
+        cfg.get("auto_clean_logs_days"),
+        DEFAULT_CONFIG["auto_clean_logs_days"], minimum=0,
+    )
+    return cfg
+
 
 def get_config_path() -> str:
     """Trả về đường dẫn file config hiện có hoặc đường dẫn ưu tiên."""
@@ -70,6 +161,9 @@ def get_config_path() -> str:
 
 def load_config() -> Dict[str, Any]:
     """Tải cấu hình từ config.json hoặc tạo file mặc định nếu chưa có."""
+    global _ENV_CREDENTIAL_KEYS
+    _ENV_CREDENTIAL_KEYS = set()
+
     cfg = DEFAULT_CONFIG.copy()
     cfg_file = get_config_path()
 
@@ -88,24 +182,62 @@ def load_config() -> Dict[str, Any]:
             pass
 
     # Biến môi trường có độ ưu tiên cao nhất nếu được thiết lập
-    cfg["f4f_user"] = os.environ.get("F4F_USER", cfg["f4f_user"])
-    cfg["f4f_pass"] = os.environ.get("F4F_PASS", cfg["f4f_pass"])
-    cfg["platform"] = os.environ.get("PLATFORM", cfg["platform"])
-    cfg["tiktok_uid"] = os.environ.get("TIKTOK_UID", cfg["tiktok_uid"])
-    cfg["instagram_username"] = os.environ.get("IG_USER", cfg["instagram_username"])
-    cfg["adb_serial"] = os.environ.get("ADB_SERIAL", cfg["adb_serial"])
-    return cfg
+    env_map = {
+        "f4f_user": "F4F_USER",
+        "f4f_pass": "F4F_PASS",
+        "platform": "PLATFORM",
+        "tiktok_uid": "TIKTOK_UID",
+        "instagram_username": "IG_USER",
+        "adb_serial": "ADB_SERIAL",
+    }
+    for key, env_name in env_map.items():
+        env_value = os.environ.get(env_name)
+        if env_value is not None:
+            cfg[key] = env_value
+            if key in ("f4f_user", "f4f_pass"):
+                _ENV_CREDENTIAL_KEYS.add(key)
+
+    return _validate_config(cfg)
 
 
 def save_config(cfg: Dict[str, Any]) -> bool:
-    """Lưu cấu hình vào file config.json."""
+    """Lưu cấu hình vào file config.json (không ghi đè credential lấy từ ENV)."""
     cfg_file = get_config_path()
+    to_save = dict(cfg)
+
+    # Nếu credential đến từ biến môi trường, giữ nguyên giá trị cũ trong file
+    # thay vì ghi secret của ENV xuống đĩa.
+    if _ENV_CREDENTIAL_KEYS:
+        existing: Dict[str, Any] = {}
+        if os.path.isfile(cfg_file):
+            try:
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    existing = loaded
+            except Exception:
+                existing = {}
+        for key in _ENV_CREDENTIAL_KEYS:
+            to_save[key] = existing.get(key, DEFAULT_CONFIG.get(key, ""))
+
+    tmp_file = cfg_file + ".tmp"
     try:
-        with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        os.makedirs(os.path.dirname(cfg_file), exist_ok=True)
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(to_save, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_file, cfg_file)
+        try:
+            os.chmod(cfg_file, 0o600)
+        except OSError:
+            pass
         return True
     except Exception as e:
         print(f"[!] Lỗi ghi {cfg_file}: {e}")
+        try:
+            if os.path.exists(tmp_file):
+                os.remove(tmp_file)
+        except OSError:
+            pass
         return False
 
 
@@ -160,7 +292,13 @@ def interactive_configure(cfg: Dict[str, Any]) -> Dict[str, Any]:
         cur_p = ""
     masked_p = "••••••••" if cur_p else ""
     p_prompt = f"2. F4F Password [{masked_p}]: " if masked_p else "2. F4F Password: "
-    val_p = input(p_prompt).strip()
+    try:
+        val_p = getpass.getpass(p_prompt).strip()
+    except (EOFError, KeyboardInterrupt):
+        raise
+    except Exception:
+        # Một số môi trường (IDE/Termux) không hỗ trợ getpass.
+        val_p = input(p_prompt).strip()
     if val_p:
         cfg["f4f_pass"] = val_p
 
@@ -194,68 +332,90 @@ def interactive_configure(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
     if cfg.get("human_behavior", True):
         cur_every = cfg.get("human_behavior_every_n_jobs", 5)
-        val_every = input(f"   └─ Sau bao nhiêu job thì lướt feed? [{cur_every}]: ").strip()
+        val_every = input(f"   └─ Cỡ bao nhiêu job thì lướt feed (ngẫu nhiên ±2 job)? [{cur_every}]: ").strip()
         if val_every.isdigit() and int(val_every) > 0:
             cfg["human_behavior_every_n_jobs"] = int(val_every)
 
         cur_times = cfg.get("human_behavior_scroll_times", 2)
-        val_times = input(f"   └─ Mỗi lần lướt bao nhiêu video? [{cur_times}]: ").strip()
+        val_times = input(f"   └─ Cỡ bao nhiêu video mỗi lần lướt (ngẫu nhiên ±1)? [{cur_times}]: ").strip()
         if val_times.isdigit() and int(val_times) > 0:
             cfg["human_behavior_scroll_times"] = int(val_times)
 
-    # 6. Lựa chọn nền tảng & chế độ job
-    cur_plat = select_platform_menu(cfg)
-    if cur_plat == "tiktok":
-        select_job_type_menu(cfg)
+    # Nền tảng & chế độ job được chọn ở menu đầu tiên (main.py), wizard chỉ
+    # tập trung vào thông số phiên chạy nên không hỏi lại ở đây.
 
     save_config(cfg)
     print(f"\n{GREEN}✓ Đã lưu toàn bộ cấu hình vào config.json!{RESET}\n")
     return cfg
 
 
-def check_or_prompt_credentials(cfg: Dict[str, Any]) -> tuple[Dict[str, Any], bool]:
+def has_credentials(cfg: Dict[str, Any]) -> bool:
+    """Kiểm tra cfg đã có username/password F4F hợp lệ (không phải placeholder)."""
+    user = str(cfg.get("f4f_user") or "").strip()
+    pwd = str(cfg.get("f4f_pass") or "").strip()
+    return bool(user) and user != "your_f4f_username" and bool(pwd) and pwd != "your_f4f_password"
+
+
+def ensure_credentials(cfg: Dict[str, Any]) -> None:
     """
-    Kiểm tra và cho phép chỉnh sửa cấu hình trực tiếp từ terminal.
-    Trả về: (cfg, quick_start)
-      - quick_start = True: người dùng bấm Enter tại bảng Overview để chạy ngay
-      - quick_start = False: người dùng vừa chỉnh sửa hoặc cấu hình lần đầu
+    Đảm bảo config có thông tin đăng nhập F4F.
+
+    - TTY    : thiếu -> mở wizard; sau wizard vẫn thiếu -> báo lỗi và dừng sớm.
+    - Non-TTY: thiếu -> dừng ngay với exit code 1.
     """
-    has_user = bool(cfg.get("f4f_user") and cfg["f4f_user"] not in ("your_f4f_username", ""))
-    has_pass = bool(cfg.get("f4f_pass") and cfg["f4f_pass"] not in ("your_f4f_password", ""))
+    if has_credentials(cfg):
+        return
 
-    if not sys.stdin.isatty():
-        return cfg, True
-
-    if has_user and has_pass:
-        render_session_overview(cfg)
-
-        try:
-            choice = input(f"{CYAN}›{RESET} {WHITE}Enter{RESET} = chạy ngay  {CYAN}|{RESET}  {YELLOW}2/c{RESET} = chỉnh cấu hình  {CYAN}» {RESET}").strip().lower()
-            if choice in ("2", "c", "edit", "config", "s", "sua", "y", "yes"):
-                cfg = interactive_configure(cfg)
-                return cfg, False
-            return cfg, True
-        except (EOFError, KeyboardInterrupt):
-            print("\nĐã hủy.")
-            sys.exit(0)
+    if not _is_tty():
+        print(
+            f"{RED}[!] Thiếu F4F_USER/F4F_PASS trong config.json hoặc biến môi trường. "
+            f"Không thể chạy ở chế độ không tương tác.{RESET}"
+        )
+        sys.exit(1)
 
     print(f"{YELLOW}[!] Chưa có thông tin tài khoản follow4follow.{RESET}")
+    cfg.update(interactive_configure(cfg))
+    if not has_credentials(cfg):
+        print(f"{RED}[!] Vẫn chưa nhập đủ Username/Password follow4follow. Dừng.{RESET}")
+        sys.exit(1)
+
+
+def select_use_saved_config(cfg: Dict[str, Any] = None) -> bool:
+    """
+    Hỏi người dùng muốn dùng lại cấu hình đã lưu của lần chạy trước (True)
+    hay cài đặt lại từ đầu (False). Non-TTY: luôn dùng cấu hình đã lưu.
+    """
+    if not _is_tty():
+        return True
+
+    # Lần đầu chạy / chưa có credential hợp lệ thì bỏ qua câu hỏi, vào wizard luôn.
+    if not has_credentials(cfg or {}):
+        print(f"{YELLOW}[i] Chưa có cấu hình hợp lệ trong config.json — sẽ mở trình cài đặt.{RESET}")
+        return False
+
+    render_saved_config_menu()
     try:
-        cfg = interactive_configure(cfg)
-    except (EOFError, KeyboardInterrupt):
+        choice = input(
+            f"{CYAN}›{RESET} Chọn [1/2] {CYAN}(Enter = 1 - dùng cấu hình cũ){RESET}: "
+        ).strip().lower()
+    except KeyboardInterrupt:
         print("\nĐã hủy.")
-        sys.exit(0)
-    return cfg, False
+        sys.exit(130)
+    except EOFError:
+        print("\nĐã hủy.")
+        sys.exit(1)
+    return choice not in ("2", "c", "new", "moi", "setup", "sua")
 
 
 def select_platform_menu(cfg: Dict[str, Any]) -> str:
     """Hiển thị menu cho người dùng lựa chọn nền tảng muốn chạy."""
-    if not sys.stdin.isatty():
-        return cfg.get("platform", "tiktok")
+    current = str(cfg.get("platform", "tiktok")).lower()
+    if not _is_tty():
+        return "instagram" if ("ig" in current or "insta" in current) else "tiktok"
 
     render_platform_menu()
 
-    cur_plat = cfg.get("platform", "tiktok").lower()
+    cur_plat = current
     def_num = "2" if ("ig" in cur_plat or "insta" in cur_plat) else "1"
 
     try:
@@ -263,19 +423,27 @@ def select_platform_menu(cfg: Dict[str, Any]) -> str:
         if choice in ("2", "ig", "insta", "instagram"):
             cfg["platform"] = "instagram"
             selected = "instagram"
-        else:
+        elif choice in ("1", "tt", "tik", "tiktok"):
             cfg["platform"] = "tiktok"
             selected = "tiktok"
-        save_config(cfg)
+        else:
+            # Enter (hoặc lựa chọn không hợp lệ) phải dùng đúng nền tảng mặc định.
+            selected = "instagram" if def_num == "2" else "tiktok"
+            cfg["platform"] = selected
         return selected
-    except (EOFError, KeyboardInterrupt):
+    except KeyboardInterrupt:
         print("\nĐã hủy.")
-        sys.exit(0)
+        sys.exit(130)
+    except EOFError:
+        print("\nĐã hủy.")
+        sys.exit(1)
 
 
 def select_job_type_menu(cfg: Dict[str, Any]) -> str:
     """Hiển thị menu cho người dùng lựa chọn loại job TikTok."""
     default_type = cfg.get("job_type", "all")
+    if default_type not in ("follow", "like", "all"):
+        default_type = "all"
     type_map = {
         "1": "follow",
         "2": "like",
@@ -285,8 +453,8 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
         "all": "all",
     }
 
-    if not sys.stdin.isatty():
-        return cfg.get("job_type", "all")
+    if not _is_tty():
+        return default_type
 
     render_job_type_menu()
 
@@ -300,10 +468,18 @@ def select_job_type_menu(cfg: Dict[str, Any]) -> str:
         choice = input(
             f"{CYAN}›{RESET} Chọn chế độ [1/2/3] {CYAN}(Enter = {def_num}){RESET}: "
         ).strip().lower()
-        selected = type_map.get(choice, default_type if not choice else "all")
+        if not choice:
+            selected = default_type
+        elif choice in type_map:
+            selected = type_map[choice]
+        else:
+            print(f"{YELLOW}[!] Lựa chọn không hợp lệ, dùng mặc định: {default_type}{RESET}")
+            selected = default_type
         cfg["job_type"] = selected
-        save_config(cfg)
         return selected
-    except (EOFError, KeyboardInterrupt):
+    except KeyboardInterrupt:
         print("\nĐã hủy.")
-        sys.exit(0)
+        sys.exit(130)
+    except EOFError:
+        print("\nĐã hủy.")
+        sys.exit(1)

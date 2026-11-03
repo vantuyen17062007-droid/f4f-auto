@@ -17,7 +17,17 @@ __pycache__/
 *.png
 *.jpg
 *.jpeg
-*.xml
+window_dump*.xml
+
+# Android build artifacts
+.gradle/
+build/
+android_app/**/build/
+android_app/.gradle/
+*.apk
+*.aab
+.idea/
+*.iml
 
 # Environment variables
 .env

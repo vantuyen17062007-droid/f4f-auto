@@ -1,4 +1,4 @@
-requests>=2.28.0
-rich>=13.0.0
-uiautomator2>=2.16.0
-lxml>=4.9.0
+requests>=2.28.0,<3
+rich>=13.0.0,<15
+uiautomator2>=2.16.0,<4
+lxml>=4.9.0,<7

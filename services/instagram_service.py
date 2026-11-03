@@ -15,9 +15,8 @@ import time
 import random
 from typing import Optional, Dict, Any
 
-from core.helpers import CYAN, GREEN, YELLOW, RED, WHITE, RESET
+from core.helpers import CYAN, GREEN, YELLOW, RED, RESET, extract_handle
 from core.ui import render_accounts_table
-from core.adb import AdbController
 from api.f4f_client import ApiF4F
 from services.base_runner import BaseJobRunner
 from config.settings import save_config
@@ -39,8 +38,13 @@ class InstagramJobRunner(BaseJobRunner):
             self.log.error(f"Lỗi gọi API F4F lấy tài khoản Instagram: {e}")
             sys.exit(1)
 
+        acc_list = [
+            acc for acc in acc_list
+            if (acc.get("username") or acc.get("name")) and acc.get("id") is not None
+        ]
+
         if not acc_list:
-            self.log.error(f"{RED}Không tìm thấy tài khoản Instagram nào liên kết trên F4F!{RESET}")
+            self.log.error(f"{RED}Không tìm thấy tài khoản Instagram nào đang hoạt động trên F4F!{RESET}")
             self.log.error("Vui lòng vào follow4follow.net -> Thêm tài khoản Instagram trước khi chạy.")
             sys.exit(1)
 
@@ -49,7 +53,7 @@ class InstagramJobRunner(BaseJobRunner):
         # 1. Nếu chỉ có 1 tài khoản duy nhất -> Tự động dùng
         if len(acc_list) == 1:
             chosen = acc_list[0]
-            self.username = chosen.get("username")
+            self.username = chosen.get("username") or chosen.get("name")
             self.account_id = chosen.get("id")
             self.cfg["instagram_username"] = self.username
             self.log.info(f"{GREEN}✓ Tự động chọn tài khoản Instagram:{RESET} {CYAN}@{self.username}{RESET} (ID: {self.account_id})")
@@ -58,23 +62,43 @@ class InstagramJobRunner(BaseJobRunner):
         # 2. Nếu có nhiều tài khoản -> Hiển thị menu chọn
         default_idx = 1
         for idx, acc in enumerate(acc_list, start=1):
-            if saved_user and acc.get("username") == saved_user:
+            if saved_user and (acc.get("username") or acc.get("name")) == saved_user:
                 default_idx = idx
                 break
 
+        # Môi trường không tương tác (pipe, cron, Termux không TTY):
+        # tự chọn tài khoản mặc định thay vì gọi input() rồi thoát.
+        if not (sys.stdin and sys.stdin.isatty()):
+            chosen = acc_list[default_idx - 1]
+            self.username = chosen.get("username") or chosen.get("name")
+            self.account_id = chosen.get("id")
+            self.cfg["instagram_username"] = self.username
+            self.log.info(
+                f"{GREEN}✓ Đang dùng tài khoản Instagram:{RESET} "
+                f"{CYAN}@{self.username}{RESET} (ID: {self.account_id})"
+            )
+            return
+
         render_accounts_table("Instagram", acc_list, default_idx)
 
-        def_name = acc_list[default_idx - 1].get("username")
+        def_name = acc_list[default_idx - 1].get("username") or acc_list[default_idx - 1].get("name")
         selected_idx = default_idx
         try:
             choice = input(f"{CYAN}›{RESET} Chọn tài khoản Instagram [1-{len(acc_list)}] {CYAN}(Enter = @{def_name}){RESET}: ").strip()
             if choice.isdigit() and 1 <= int(choice) <= len(acc_list):
                 selected_idx = int(choice)
-        except (EOFError, KeyboardInterrupt):
-            sys.exit(0)
+        except KeyboardInterrupt:
+            print()
+            sys.exit(130)
+        except EOFError:
+            # Không thể đọc input (headless/pipe): dùng tài khoản mặc định.
+            self.log.info(
+                f"{YELLOW}[i] Không đọc được input, dùng tài khoản mặc định:{RESET} "
+                f"{CYAN}@{def_name}{RESET}"
+            )
 
         chosen = acc_list[selected_idx - 1]
-        self.username = chosen.get("username")
+        self.username = chosen.get("username") or chosen.get("name")
         self.account_id = chosen.get("id")
         self.cfg["instagram_username"] = self.username
         self.log.info(f"{GREEN}✓ Đã chọn tài khoản Instagram:{RESET} {CYAN}@{self.username}{RESET} (ID: {self.account_id})")
@@ -100,36 +124,45 @@ class InstagramJobRunner(BaseJobRunner):
 
         self._select_instagram_account()
 
-        serial = self.cfg.get("adb_serial", "auto")
-        self.log.info(f"Đang kết nối thiết bị ADB ({serial}) ...")
-        self.adb = AdbController(serial=serial)
-        w, h = self.adb.get_screen_size()
-        self.log.info(f"{GREEN}✓ ADB sẵn sàng:{RESET} Màn hình {w}x{h}")
+        self.connect_device()
 
         pkg_cfg = self.cfg.get("instagram_package", "auto")
-        if not pkg_cfg or pkg_cfg == "auto":
-            self.package_name = self.adb.detect_instagram_package()
-        else:
-            self.package_name = pkg_cfg
+        try:
+            self.package_name = (
+                pkg_cfg if pkg_cfg and pkg_cfg != "auto"
+                else self.adb.detect_instagram_package()
+            )
+        except RuntimeError as e:
+            self.log.error(f"{RED}[Logo/App] {e}{RESET}")
+            sys.exit(1)
         self.log.info(f"Instagram Package: {CYAN}{self.package_name}{RESET}")
 
         self._ensure_instagram_running()
 
     def _ensure_instagram_running(self):
         """Khởi động ứng dụng Instagram nếu chưa bật."""
-        current = self.adb.shell("dumpsys window | grep mCurrentFocus")
-        if self.package_name not in current:
+        if self.adb.current_package() != self.package_name:
             self.log.info("Mở ứng dụng Instagram...")
             self.adb.shell(f"monkey -p {self.package_name} -c android.intent.category.LAUNCHER 1")
             time.sleep(3)
             self.adb.dismiss_popups(package=self.package_name)
+            if self.adb.current_package() != self.package_name:
+                self.log.warning(
+                    "Không xác nhận được Instagram đã mở. Job đầu tiên có thể bị bỏ qua."
+                )
 
     def process_job(self, job: Dict[str, Any]) -> str:
         """Xử lý 1 job Follow Instagram."""
-        job_id = job["id"]
-        object_id = job.get("object_id") or ""
+        job_id = job.get("id")
+        object_id = str(job.get("object_id") or "").strip()
         reward = int(job.get("reward_amount", 35))
         remains = job.get("remains", "?")
+
+        if not job_id or not object_id:
+            self.log.warning("  [!] Job thiếu id/object_id -> Bỏ qua")
+            self.stats["skipped"] += 1
+            self._skip(job_id, object_id, "missing_job_data")
+            return "skipped"
 
         self.log.info(f"{'─'*50}")
         self.log.info(
@@ -141,11 +174,25 @@ class InstagramJobRunner(BaseJobRunner):
         if not ok:
             self.log.warning(f"  [!] Không thể mở trang cá nhân @{object_id} -> Bỏ qua job")
             self.stats["skipped"] += 1
-            self._skip(job_id, object_id)
+            self._skip(job_id, object_id, "open_failed")
             return "skipped"
 
         time.sleep(random.uniform(1.8, 2.8))
         self.adb.dismiss_popups(package=self.package_name)
+
+        # Xác minh đã mở đúng profile trước khi bấm Follow.
+        handle = extract_handle(object_id) or object_id
+        if not self.adb.wait_handle(
+            handle,
+            package=self.package_name,
+            timeout=self.cfg.get("profile_load_timeout", 8),
+        ):
+            self.log.warning(
+                f"  [!] Không xác minh được profile @{object_id} đã tải xong -> Bỏ qua job"
+            )
+            self.stats["skipped"] += 1
+            self._skip(job_id, object_id, "profile_not_loaded")
+            return "skipped"
 
         state = self.adb.follow_profile(
             package=self.package_name,
@@ -155,47 +202,104 @@ class InstagramJobRunner(BaseJobRunner):
 
         if state == "already":
             self.log.info(f"  {YELLOW}ℹ Đã follow @{object_id} từ trước! Nhận thưởng...{RESET}")
-            self.stats["already"] += 1
-            self._complete(job_id, reward)
-            return "already"
+            return self._report_success(job_id, reward, "already", "already", object_id)
 
-        if state in ("clicked", "click_unverified"):
+        if state == "clicked":
             self.log.info(f"  {GREEN}✓ Đã bấm Follow @{object_id} thành công!{RESET}")
-            self.stats["followed"] += 1
-            self._complete(job_id, reward)
-            return "followed"
+            return self._report_success(job_id, reward, "followed", "followed", object_id)
+
+        if state == "click_unverified":
+            # UI Instagram có thể cập nhật chậm; kiểm tra thêm một lần.
+            time.sleep(2.0)
+            recheck, _ = self.adb.get_follow_state(package=self.package_name)
+            if recheck in ("followed", "requested"):
+                self.log.info(f"  {GREEN}✓ Đã bấm Follow thành công (xác minh lại)!{RESET}")
+                return self._report_success(job_id, reward, "followed", "followed", object_id)
+            self.log.warning(
+                f"  {RED}✗ Đã bấm Follow nhưng chưa xác minh được -> Bỏ qua job{RESET}"
+            )
+            self.stats["skipped"] += 1
+            self._skip(job_id, object_id, "follow_unverified")
+            return "skipped"
 
         if state == "requested":
             self.log.info(f"  {YELLOW}ℹ Tài khoản riêng tư (Đã gửi yêu cầu theo dõi)! Nhận thưởng...{RESET}")
-            self.stats["followed"] += 1
-            self._complete(job_id, reward)
-            return "followed"
+            return self._report_success(job_id, reward, "followed", "followed", object_id)
 
         self.log.warning(f"  {RED}✗ Không tìm thấy nút Follow hoặc trang lỗi (state={state}) -> Bỏ qua job{RESET}")
         self.stats["skipped"] += 1
-        self._skip(job_id, object_id)
+        self._skip(job_id, object_id, f"state_{state}")
         return "skipped"
 
-    def _complete(self, job_id: int, reward: int, retries: int = 1):
+    def _report_success(
+        self, job_id: int, reward: int, stat_key: str, result: str, object_id: str
+    ) -> str:
+        """Chỉ ghi nhận thành công khi F4F xác nhận complete-job."""
+        if self._complete(job_id, reward, object_id=object_id):
+            self.stats[stat_key] += 1
+            return result
+        return "error"
+
+    def _complete(
+        self,
+        job_id: int,
+        reward: int,
+        object_id: Optional[str] = None,
+        retries: int = 2,
+    ) -> bool:
+        """
+        Báo cáo hoàn thành job Instagram.
+
+        Chỉ thử lại lỗi 400 tạm thời (server bận/đồng bộ); không skip job khi
+        complete thất bại để tránh mất job/coin của người dùng.
+        """
+        busy_hints = (
+            "đang bận", "hệ thống bận", "đồng bộ",
+            "busy", "try again", "sync",
+        )
+        retry_delays = (10, 30)
+
         for attempt in range(retries + 1):
             try:
                 res = self.api.complete_job_ig(job_id, self.account_id, type_job="follow")
-                earned = int(res.get("data", {}).get("coin_received") or reward)
+                try:
+                    earned = int((res.get("data") or {}).get("coin_received") or reward)
+                except (TypeError, ValueError, AttributeError):
+                    earned = reward
                 self.stats["coins_earned"] += earned
-                self.log.info(f"  {GREEN}💰 Nhận thành công +{earned} xu! (Tổng kiếm: ~{self.stats['coins_earned']} xu){RESET}")
+                self.log.info(
+                    f"  {GREEN}💰 Nhận thành công +{earned} xu! "
+                    f"(Tổng kiếm: ~{self.stats['coins_earned']} xu){RESET}"
+                )
                 return True
             except Exception as e:
-                if "400" in str(e) and attempt < retries:
-                    self.log.warning("  -> F4F đang đồng bộ dữ liệu Instagram, thử lại sau 3.5s...")
-                    time.sleep(3.5)
+                message = str(e)
+                is_400 = "400" in message
+                is_transient = is_400 and any(hint in message.lower() for hint in busy_hints)
+                if is_transient and attempt < retries:
+                    wait = retry_delays[min(attempt, len(retry_delays) - 1)]
+                    self.log.warning(
+                        f"  -> F4F đang kiểm tra/đồng bộ dữ liệu Instagram, thử lại sau {wait}s..."
+                    )
+                    time.sleep(wait)
                     continue
-                self.log.error(f"  {RED}[!] Lỗi báo cáo complete-job F4F: {e}{RESET}")
+                self.log.error(
+                    f"  {RED}[!] Lỗi báo cáo complete-job F4F cho job #{job_id} "
+                    f"(@{object_id}): {message}{RESET}"
+                )
+                self.log.warning(
+                    "  -> Giữ nguyên job để có thể nhận lại sau; không tự động skip."
+                )
                 return False
+        return False
 
-    def _skip(self, job_id: int, object_id: str):
+    def _skip(self, job_id, object_id: str, reason: str = ""):
         try:
             self.api.skip_job_ig(job_id, self.account_id, self.username, object_id)
-            self.log.info(f"  {YELLOW}↷ Đã gửi yêu cầu bỏ qua (skip) job #{job_id}{RESET}")
+            self.log.info(
+                f"  {YELLOW}↷ Đã gửi yêu cầu bỏ qua (skip) job #{job_id}"
+                f"{f' [{reason}]' if reason else ''}{RESET}"
+            )
         except Exception as e:
             self.log.error(f"  [!] Lỗi skip job F4F: {e}")
 
@@ -222,11 +326,37 @@ class InstagramJobRunner(BaseJobRunner):
                 time.sleep(20)
                 continue
 
+            # Bỏ job trùng trong batch và job đã thử quá số lần cho phép.
+            new_jobs = []
+            seen_in_batch = set()
             for job in jobs:
+                job_id = job.get("id")
+                if job_id is None:
+                    continue
+                key = str(job_id)
+                if key in seen_in_batch:
+                    continue
+                seen_in_batch.add(key)
+                if not self.can_attempt_job(key):
+                    continue
+                new_jobs.append(job)
+
+            if not new_jobs:
+                self.log.info(f"{YELLOW}Không còn job Instagram mới. Chờ 20s thử lại...{RESET}")
+                time.sleep(20)
+                continue
+
+            for job in new_jobs:
                 if total_processed >= max_jobs:
                     break
 
-                res = self.process_job(job)
+                self.mark_job_attempt(job["id"])
+                try:
+                    res = self.process_job(job)
+                except Exception as e:
+                    self.log.exception(f"Lỗi xử lý job #{job.get('id')}: {e}")
+                    res = "error"
+
                 total_processed += 1
                 self.jobs_since_human += 1
 

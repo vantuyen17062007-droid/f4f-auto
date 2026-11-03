@@ -43,7 +43,7 @@ TIKTOK/
 ├── main.py                      # 🚀 ENTRYPOINT CHÍNH (Điều phối chạy toàn bộ tool)
 │
 ├── .gitignore                   # Chặn file nhạy cảm (config.json, logs, ảnh tạm)
-├── requirements.txt             # Danh sách thư viện Python cần thiết (requests, rich)
+├── requirements.txt             # Thư viện Python cần thiết (requests, rich, uiautomator2, lxml)
 └── README.md                    # Tài liệu hướng dẫn sử dụng
 ```
 
@@ -70,12 +70,16 @@ TIKTOK/
    - Tự động đóng các popup phiền toái (đồng bộ danh bạ, bật thông báo...).
 5. **Cấu Hình Tương Tác Trực Tiếp Qua Terminal:**
    - Không cần mở file `config.json` ra sửa thủ công.
-   - Khi khởi động `main.py`, tool hiện bảng tóm tắt:
-     - Nhấn **Enter (hoặc 1)**: Chạy ngay với cấu hình trước đó.
-     - Nhấn **2 (hoặc `c`)**: Trình wizard hỏi trực tiếp từng thông số (tài khoản, số job, delay, anti-ban).
+   - Luồng khởi động `main.py` theo thứ tự:
+     1. **Chọn nền tảng**: `1` TikTok / `2` Instagram (Enter = nền tảng đã lưu).
+     2. **Cấu hình này lần?**: Enter (hoặc `1`) = dùng lại giữ nguyên cài đặt cũ, `2` = cài lại (nhập tài khoản, số job, delay, anti-ban). Lần đầu chạy sẽ vào trình cài đặt luôn.
+     3. **Kiểm tra tài khoản F4F**: thiếu sẽ được yêu cầu nhập; thiếu vẫn → dừng sớm.
+     4. **Với TikTok**: chọn chế độ job `1` Follow / `2` Like / `3` All.
+     5. **Bảng SESSION OVERVIEW** tóm tắt toàn bộ trước khi bắt đầu.
+   - Nếu chưa có thiết bị ADB khi chạy: tool hướng dẫn kiểm tra và cho **Enter = thử lại / q = thoát** (không crash).
 6. **Mô Phỏng Người Thật (Anti-Ban / Checkpoint):**
-   - Tùy chỉnh tần suất lướt feed (`human_behavior_every_n_jobs`: sau bao nhiêu job thì lướt feed 1 lần).
-   - Tùy chỉnh số video lướt mỗi lần (`human_behavior_scroll_times`).
+   - Tùy chỉnh tần suất lướt feed (`human_behavior_every_n_jobs`: cỡ bao nhiêu job thì lướt feed 1 lần — vòng thực tế **ngẫu nhiên ±2 job**).
+   - Tùy chỉnh số video mỗi lần lướt (`human_behavior_scroll_times` — lần thực tế **ngẫu nhiên ±1 video**).
 7. **Đa Nền Tảng Chạy Được Trên PC Lẫn Điện Thoại:**
    - Hỗ trợ Windows, Linux, macOS.
    - Hỗ trợ chạy trực tiếp trong ứng dụng **Termux** trên điện thoại Android qua Local ADB.
@@ -114,7 +118,7 @@ Bạn có thể chạy tool độc lập ngay trên chính chiếc điện tho�
 ```bash
 pkg update && pkg upgrade -y
 pkg install python android-tools git libxml2 libxslt -y
-pip install requests uiautomator2 lxml
+pip install -r requirements.txt
 ```
 
 ### 2. Kích Hoạt Kết Nối ADB Cục Bộ (Local Wireless ADB):
@@ -165,23 +169,42 @@ Ngoài file chạy chính `main.py`, bạn có thể dùng các công cụ độ
 
 ```json
 {
-  "f4f_user": "your_f4f_username",        // Tài khoản follow4follow.net
-  "f4f_pass": "your_f4f_password",        // Mật khẩu follow4follow.net
-  "platform": "tiktok",                  // "tiktok" hoặc "instagram"
-  "tiktok_uid": "",                      // Để trống để tự động chọn nick qua API
-  "instagram_username": "",              // Để trống để tự động chọn nick qua API
-  "job_type": "all",                     // TikTok: "all", "follow", hoặc "like"
-  "adb_serial": "auto",                  // "auto" hoặc serial/IP cụ thể
-  "tiktok_package": "auto",              // "auto" (tự nhận diện com.ss.android.ugc.trill...)
-  "instagram_package": "auto",           // "auto" (tự nhận diện com.instagram.android...)
-  "max_jobs_per_session": 50,            // Số job tối đa trong 1 phiên chạy
-  "delay_min": 8,                        // Nghỉ ngẫu nhiên tối thiểu (giây)
-  "delay_max": 18,                       // Nghỉ ngẫu nhiên tối đa (giây)
-  "profile_load_timeout": 8,             // Thời gian chờ tải trang cá nhân
-  "verify_timeout": 3,                   // Thời gian xác thực nút sau khi click
-  "human_behavior": true,                // Bật chế độ lướt feed chống ban
-  "human_behavior_every_n_jobs": 5,      // Sau bao nhiêu job thì lướt feed 1 lần
-  "human_behavior_scroll_times": 2,      // Mỗi lần lướt bao nhiêu video
-  "auto_clean_logs_days": 7              // Tự xóa file log cũ hơn N ngày
+  "f4f_user": "your_f4f_username",
+  "f4f_pass": "your_f4f_password",
+  "platform": "tiktok",
+  "tiktok_uid": "",
+  "instagram_username": "",
+  "job_type": "all",
+  "adb_serial": "auto",
+  "tiktok_package": "auto",
+  "instagram_package": "auto",
+  "max_jobs_per_session": 50,
+  "delay_min": 8,
+  "delay_max": 18,
+  "profile_load_timeout": 8,
+  "verify_timeout": 3,
+  "human_behavior": true,
+  "human_behavior_every_n_jobs": 5,
+  "human_behavior_scroll_times": 2,
+  "auto_clean_logs_days": 7
 }
 ```
+
+Ý nghĩa các trường:
+
+| Trường | Ý nghĩa |
+|---|---|
+| `f4f_user`, `f4f_pass` | Tài khoản/mật khẩu follow4follow.net (có thể đặt qua `F4F_USER`, `F4F_PASS`) |
+| `platform` | `tiktok` hoặc `instagram` |
+| `tiktok_uid`, `instagram_username` | Để trống để tự động chọn nick qua API |
+| `job_type` | TikTok: `all`, `follow`, hoặc `like` |
+| `adb_serial` | `auto` hoặc serial/IP cụ thể (không tự chuyển sang thiết bị khác nếu chỉ định) |
+| `tiktok_package`, `instagram_package` | `auto` để tự nhận diện package đã cài |
+| `max_jobs_per_session` | Số job tối đa trong 1 phiên chạy |
+| `delay_min`, `delay_max` | Nghỉ ngẫu nhiên tối thiểu/tối đa (giây) |
+| `profile_load_timeout` | Thời gian chờ tải trang cá nhân/video |
+| `verify_timeout` | Thời gian xác thực trạng thái sau khi click |
+| `human_behavior` | Bật/tắt mô phỏng lướt feed chống ban |
+| `human_behavior_every_n_jobs` | Cỡ giãn cách kích hoạt anti-ban — vòng thực tế ngẫu nhiên trong `[n-2, n+2]` |
+| `human_behavior_scroll_times` | Cỡ số video mỗi lần lướt — thực tế ngẫu nhiên trong `[n-1, n+1]` |
+| `auto_clean_logs_days` | Tự xóa file log cũ hơn N ngày (`0` = tắt) |

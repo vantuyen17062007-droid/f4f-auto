@@ -52,10 +52,14 @@ def main():
 
     if res == "already":
         print(f"{YELLOW}[✓] Video đã được thích từ trước!{RESET}")
-    elif res in ("clicked", "click_unverified"):
+    elif res == "clicked":
         print(f"{GREEN}[✓] Đã thả tim (Like) video thành công!{RESET}")
+    elif res == "click_unverified":
+        print(f"{YELLOW}[!] Đã bấm Like nhưng chưa xác minh được trạng thái.{RESET}")
+        sys.exit(2)
     else:
         print(f"{RED}[✗] Thao tác thất bại: {res}{RESET}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
