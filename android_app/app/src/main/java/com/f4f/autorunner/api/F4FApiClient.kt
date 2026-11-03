@@ -1,7 +1,7 @@
 package com.f4f.autorunner.api
 
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,7 +32,7 @@ class F4FApiClient {
         return mac.doFinal(payload).joinToString("") { "%02x".format(it) }
     }
 
-    private suspend inline fun <reified T> request(
+    suspend inline fun <reified T> request(
         method: String,
         path: String,
         jsonBody: String? = null,
@@ -73,13 +73,36 @@ class F4FApiClient {
         val response = client.newCall(requestBuilder.build()).execute()
         val responseBody = response.body?.string().orEmpty()
 
-        val type = object : TypeToken<ApiResponse<T>>() {}.type
-        val result: ApiResponse<T> = gson.fromJson(responseBody, type)
-
-        if (result.statusCode >= 400) {
-            throw RuntimeException("[${result.statusCode}] ${result.message ?: "Unknown API error"}")
+        val jsonObject = try {
+            gson.fromJson(responseBody, JsonObject::class.java)
+        } catch (e: Exception) {
+            throw RuntimeException("Phản hồi không phải JSON: $responseBody")
         }
-        return@withContext result
+
+        val statusCode = if (jsonObject.has("status_code") && !jsonObject.get("status_code").isJsonNull) {
+            jsonObject.get("status_code").asInt
+        } else {
+            response.code
+        }
+
+        val message = if (jsonObject.has("message") && !jsonObject.get("message").isJsonNull) {
+            jsonObject.get("message").asString
+        } else {
+            null
+        }
+
+        if (statusCode >= 400 || !response.isSuccessful) {
+            throw RuntimeException(message ?: "Lỗi máy chủ ($statusCode)")
+        }
+
+        val dataElement = jsonObject.get("data")
+        val parsedData: T? = if (dataElement != null && !dataElement.isJsonNull) {
+            gson.fromJson(dataElement, T::class.java)
+        } else {
+            null
+        }
+
+        return@withContext ApiResponse(statusCode, message, parsedData)
     }
 
     suspend fun login(user: String, pass: String): LoginData {

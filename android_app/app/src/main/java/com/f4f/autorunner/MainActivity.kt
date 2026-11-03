@@ -109,13 +109,12 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     val loginData = apiClient.login(user, pass)
-                    val formatter = NumberFormat.getInstance(Locale.US)
 
                     boxProfileInfo.visibility = View.VISIBLE
                     tvProfileName.text = "@${loginData.user.username}"
-                    tvProfileBalance.text = "🪙 ${formatter.format(loginData.user.balance)} xu"
+                    tvProfileBalance.text = "🪙 ${loginData.user.getDisplayBalance()}"
 
-                    log("✓ Đăng nhập thành công: @${loginData.user.username} | Số dư: ${formatter.format(loginData.user.balance)} xu")
+                    log("✓ Đăng nhập thành công: @${loginData.user.username} | Số dư: ${loginData.user.getDisplayBalance()}")
 
                     loadAccounts()
                 } catch (e: Exception) {

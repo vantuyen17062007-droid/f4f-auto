@@ -130,7 +130,8 @@ class AutoJobEngine(
 
     private suspend fun processJob(job: F4FJob): String {
         val target = job.link ?: job.originalLink ?: job.objectId ?: ""
-        onLog("👉 Job #${job.id} [${job.typeJob.uppercase()}] | @$target | +${job.rewardAmount} xu")
+        val reward = job.getRewardInt()
+        onLog("👉 Job #${job.id} [${job.typeJob.uppercase()}] | @$target | +$reward xu")
 
         // 1. Mở trang đích qua Android Intent
         val openOk = openTarget(target, job.typeJob)
@@ -199,7 +200,7 @@ class AutoJobEngine(
         for (attempt in 0..1) {
             try {
                 val res = apiClient.completeJob(platform, job.id, accountId, job.typeJob)
-                val coins = res?.coinReceived ?: job.rewardAmount
+                val coins = res?.getCoinReceivedInt(job.getRewardInt()) ?: job.getRewardInt()
                 stats.coinsEarned += coins
                 onLog("💰 Nhận thành công +$coins xu! (Tổng: ~${stats.coinsEarned} xu)")
                 return
