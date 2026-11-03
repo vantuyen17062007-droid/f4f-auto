@@ -32,9 +32,10 @@ class F4FApiClient {
         return mac.doFinal(payload).joinToString("") { "%02x".format(it) }
     }
 
-    suspend inline fun <reified T> request(
+    private suspend fun <T> request(
         method: String,
         path: String,
+        clazz: Class<T>?,
         jsonBody: String? = null,
         queryParams: Map<String, String>? = null
     ): ApiResponse<T> = withContext(Dispatchers.IO) {
@@ -96,8 +97,8 @@ class F4FApiClient {
         }
 
         val dataElement = jsonObject.get("data")
-        val parsedData: T? = if (dataElement != null && !dataElement.isJsonNull) {
-            gson.fromJson(dataElement, T::class.java)
+        val parsedData: T? = if (dataElement != null && !dataElement.isJsonNull && clazz != null) {
+            gson.fromJson(dataElement, clazz)
         } else {
             null
         }
@@ -107,7 +108,7 @@ class F4FApiClient {
 
     suspend fun login(user: String, pass: String): LoginData {
         val payload = mapOf("username" to user, "password" to pass)
-        val res = request<LoginData>("POST", "/user/auth/login", jsonBody = gson.toJson(payload))
+        val res = request("POST", "/user/auth/login", LoginData::class.java, jsonBody = gson.toJson(payload))
         val data = res.data ?: throw RuntimeException("Dữ liệu đăng nhập trống!")
         this.token = data.accessToken
         this.user = data.user
@@ -115,18 +116,20 @@ class F4FApiClient {
     }
 
     suspend fun getAccounts(platform: String): List<SocialAccount> {
-        val res = request<AccountListData>(
+        val res = request(
             "GET",
             "/user/account/list",
+            AccountListData::class.java,
             queryParams = mapOf("type" to platform.lowercase(), "page" to "1")
         )
         return res.data?.list.orEmpty()
     }
 
     suspend fun getJobs(platform: String, uid: String, typeJob: String = "follow"): List<F4FJob> {
-        val res = request<JobListData>(
+        val res = request(
             "GET",
             "/user/earn-coin",
+            JobListData::class.java,
             queryParams = mapOf(
                 "platform" to platform.lowercase(),
                 "type" to typeJob,
@@ -149,9 +152,10 @@ class F4FApiClient {
             "type" to platform.lowercase(),
             "type_job" to typeJob
         )
-        val res = request<CompleteJobData>(
+        val res = request(
             "POST",
             "/user/earn-coin/complete-job",
+            CompleteJobData::class.java,
             jsonBody = gson.toJson(payload)
         )
         return res.data
@@ -171,9 +175,10 @@ class F4FApiClient {
             "object_id" to objectId,
             "type" to platform.lowercase()
         )
-        val res = request<Any>(
+        val res = request(
             "POST",
             "/user/earn-coin/skip-job",
+            Any::class.java,
             jsonBody = gson.toJson(payload)
         )
         return res.statusCode == 200
