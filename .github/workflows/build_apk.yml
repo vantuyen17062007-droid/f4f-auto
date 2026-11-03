@@ -5,6 +5,9 @@ on:
     branches: [ "master", "main" ]
   workflow_dispatch: # Cho phép bấm nút "Run workflow" thủ công trên GitHub
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,9 +32,25 @@ jobs:
         working-directory: ./android_app
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Đổi tên file APK chính thức
+        run: |
+          cp android_app/app/build/outputs/apk/debug/app-debug.apk android_app/app/build/outputs/apk/debug/F4F-AutoRunner-v2.0.apk
+
       - name: Đăng tải file APK lên Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: F4F-AutoRunner-APK
-          path: android_app/app/build/outputs/apk/debug/*.apk
+          path: android_app/app/build/outputs/apk/debug/F4F-AutoRunner-v2.0.apk
           retention-days: 7
+
+      - name: Đẩy trực tiếp file APK lên GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v2.0-b${{ github.run_number }}"
+          name: "F4F Auto Runner v2.0 (Build #${{ github.run_number }})"
+          body: |
+            🚀 **Bản cập nhật F4F Auto Runner APK mới nhất**
+            - **Commit**: `${{ github.sha }}`
+            - **Hướng dẫn**: Tải trực tiếp file `F4F-AutoRunner-v2.0.apk` bên dưới về điện thoại và mở cài đặt ngay (không cần giải nén file zip).
+          files: android_app/app/build/outputs/apk/debug/F4F-AutoRunner-v2.0.apk
+          token: ${{ secrets.GITHUB_TOKEN }}
