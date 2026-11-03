@@ -7,31 +7,43 @@
     android:elevation="8dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:padding="6dp">
 
-    <TextView
-        android:id="@+id/tv_floating_badge"
-        android:layout_width="10dp"
-        android:layout_height="10dp"
-        android:layout_marginEnd="6dp"
-        android:background="@drawable/circle_green" />
-
-    <TextView
-        android:id="@+id/tv_floating_status"
+    <!-- Drag handle area -->
+    <LinearLayout
+        android:id="@+id/drag_area"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="F4F: 0 xu"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
+        <TextView
+            android:id="@+id/tv_floating_badge"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/circle_green" />
+
+        <TextView
+            android:id="@+id/tv_floating_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="F4F: 0 xu"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Stop button -->
     <ImageButton
         android:id="@+id/btn_floating_stop"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="6dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_delete"
-        android:contentDescription="Stop" />
+        android:src="@drawable/ic_stop"
+        android:contentDescription="Stop Auto" />
 
 </LinearLayout>

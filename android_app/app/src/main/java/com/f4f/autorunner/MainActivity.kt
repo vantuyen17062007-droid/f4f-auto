@@ -1,5 +1,6 @@
 package com.f4f.autorunner
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -18,14 +19,13 @@ import com.f4f.autorunner.service.F4FAccessibilityService
 import com.f4f.autorunner.service.FloatingWidgetService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private val apiClient = F4FApiClient()
     private var engine: AutoJobEngine? = null
     private var accounts: List<SocialAccount> = emptyList()
+    private var baseCoins = 0
 
     private lateinit var tvTerminalLogs: TextView
     private lateinit var scrollLogs: ScrollView
@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         initViews()
         setupListeners()
+        loadSavedCredentials()
     }
 
     override fun onResume() {
@@ -79,6 +80,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        // Nút tắt từ floating widget
+        FloatingWidgetService.onStopRequested = {
+            runOnUiThread {
+                stopAuto()
+            }
+        }
+
         findViewById<View>(R.id.btn_toggle_accessibility).setOnClickListener {
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
@@ -110,6 +118,10 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val loginData = apiClient.login(user, pass)
 
+                    // Lưu thông tin đăng nhập vào bộ nhớ máy
+                    saveCredentials(user, pass)
+
+                    baseCoins = loginData.user.getNumericBalance()
                     boxProfileInfo.visibility = View.VISIBLE
                     tvProfileName.text = "@${loginData.user.username}"
                     tvProfileBalance.text = "🪙 ${loginData.user.getDisplayBalance()}"
@@ -169,7 +181,11 @@ class MainActivity : AppCompatActivity() {
         val platform = getSelectedPlatform()
         try {
             accounts = apiClient.getAccounts(platform)
-            val names = accounts.map { "@${it.username ?: it.name} (${it.status ?: "Hoạt động"})" }
+            val names = if (accounts.isEmpty()) {
+                listOf("(Chưa có nick $platform nào trên F4F)")
+            } else {
+                accounts.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
+            }
 
             val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
             spAccounts.adapter = adapter
@@ -198,10 +214,27 @@ class MainActivity : AppCompatActivity() {
 
         val platform = getSelectedPlatform()
         val selectedIdx = spAccounts.selectedItemPosition.coerceAtLeast(0)
-        val selectedAccount = accounts[selectedIdx]
+        val selectedAccount = accounts.getOrNull(selectedIdx) ?: accounts[0]
 
-        val maxJobs = findViewById<EditText>(R.id.et_max_jobs).text.toString().toIntOrNull() ?: 50
-        val accName = selectedAccount.username ?: selectedAccount.name ?: ""
+        val maxJobs = findViewById<EditText>(R.id.et_max_jobs).text.toString().trim().toIntOrNull() ?: 50
+        val accName = selectedAccount.getDisplayName()
+
+        // Phân tích khoảng Delay cấu hình
+        val delayText = findViewById<EditText>(R.id.et_delay).text.toString().trim()
+        var delayMin = 8
+        var delayMax = 18
+        if (delayText.isNotEmpty()) {
+            if (delayText.contains("-")) {
+                val parts = delayText.split("-")
+                delayMin = parts[0].trim().toIntOrNull() ?: 8
+                delayMax = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: (delayMin + 5)
+            } else {
+                delayMin = delayText.toIntOrNull() ?: 8
+                delayMax = delayMin + 4
+            }
+        }
+        if (delayMin < 3) delayMin = 3
+        if (delayMax < delayMin) delayMax = delayMin + 3
 
         // Khởi động bong bóng nổi nếu có quyền
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
@@ -212,9 +245,11 @@ class MainActivity : AppCompatActivity() {
             context = this,
             apiClient = apiClient,
             platform = platform,
-            accountId = selectedAccount.id,
+            accountId = selectedAccount.getId(),
             accountName = accName,
             maxJobs = maxJobs,
+            delayMin = delayMin,
+            delayMax = delayMax,
             onLog = { msg ->
                 lifecycleScope.launch(Dispatchers.Main) {
                     log(msg)
@@ -223,7 +258,12 @@ class MainActivity : AppCompatActivity() {
             onStatsUpdated = { stats ->
                 lifecycleScope.launch(Dispatchers.Main) {
                     FloatingWidgetService.updateStatus("Xu: +${stats.coinsEarned} | Follow: ${stats.followed}")
+                    val currentTotal = baseCoins + stats.coinsEarned
+                    tvProfileBalance.text = "🪙 $currentTotal xu (+${stats.coinsEarned})"
                 }
+            },
+            onFinished = {
+                stopAuto()
             }
         )
 
@@ -243,6 +283,22 @@ class MainActivity : AppCompatActivity() {
 
     private fun getSelectedPlatform(): String {
         return if (findViewById<RadioButton>(R.id.rb_instagram).isChecked) "instagram" else "tiktok"
+    }
+
+    private fun loadSavedCredentials() {
+        val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
+        val user = prefs.getString("f4f_user", "") ?: ""
+        val pass = prefs.getString("f4f_pass", "") ?: ""
+        if (user.isNotEmpty()) etF4fUser.setText(user)
+        if (pass.isNotEmpty()) etF4fPass.setText(pass)
+    }
+
+    private fun saveCredentials(user: String, pass: String) {
+        val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("f4f_user", user)
+            .putString("f4f_pass", pass)
+            .apply()
     }
 
     private fun log(message: String) {

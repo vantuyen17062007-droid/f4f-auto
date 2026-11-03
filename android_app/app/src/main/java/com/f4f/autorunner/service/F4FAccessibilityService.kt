@@ -17,13 +17,25 @@ class F4FAccessibilityService : AccessibilityService() {
 
         fun isRunning(): Boolean = instance != null
 
-        private val FOLLOW_LABELS = setOf("follow", "theo dõi", "follow lại", "follow back", "theo dõi lại")
-        private val FOLLOWED_LABELS = setOf("đã follow", "đang follow", "following", "đã theo dõi", "bạn bè", "friends")
-        private val REQUESTED_LABELS = setOf("đã yêu cầu", "requested")
+        private val FOLLOW_LABELS = setOf(
+            "follow", "theo dõi", "theo doi", "follow lại", "follow lai",
+            "follow back", "theo dõi lại", "theo doi lai"
+        )
+
+        private val FOLLOWED_LABELS = setOf(
+            "đã follow", "da follow", "đang follow", "dang follow",
+            "following", "đã theo dõi", "da theo doi", "đang theo dõi", "dang theo doi",
+            "bạn bè", "ban be", "friends", "followed"
+        )
+
+        private val REQUESTED_LABELS = setOf(
+            "đã yêu cầu", "da yeu cau", "requested", "yêu cầu đã gửi", "request sent"
+        )
 
         private val POPUP_DISMISS_LABELS = setOf(
-            "để sau", "không phải bây giờ", "lúc khác", "hủy", "từ chối",
-            "không cho phép", "bỏ qua", "đóng", "not now", "cancel", "dismiss",
+            "để sau", "de sau", "không phải bây giờ", "khong phai bay gio", "lúc khác", "luc khac",
+            "hủy", "huy", "từ chối", "tu choi", "không cho phép", "khong cho phep",
+            "bỏ qua", "bo qua", "đóng", "dong", "not now", "cancel", "dismiss",
             "don't allow", "later", "never", "remind me later", "skip"
         )
     }
@@ -58,7 +70,7 @@ class F4FAccessibilityService : AccessibilityService() {
         val igButtons = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/profile_header_follow_button")
         if (igButtons.isNotEmpty()) {
             val btn = igButtons[0]
-            val text = (btn.text ?: btn.contentDescription ?: "").toString().lowercase()
+            val text = (btn.text ?: btn.contentDescription ?: "").toString().trim().lowercase()
             if (FOLLOWED_LABELS.any { text.contains(it) }) return "already"
             if (REQUESTED_LABELS.any { text.contains(it) }) return "requested"
 
@@ -73,13 +85,13 @@ class F4FAccessibilityService : AccessibilityService() {
             val text = (node.text ?: node.contentDescription ?: "").toString().trim().lowercase()
             if (text.isEmpty()) continue
 
-            if (FOLLOWED_LABELS.any { it == text }) {
+            if (FOLLOWED_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
                 return "already"
             }
-            if (REQUESTED_LABELS.any { it == text }) {
+            if (REQUESTED_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
                 return "requested"
             }
-            if (FOLLOW_LABELS.any { it == text }) {
+            if (FOLLOW_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
                 if (clickNodeOrCoordinates(node)) {
                     return "followed"
                 }
@@ -102,13 +114,14 @@ class F4FAccessibilityService : AccessibilityService() {
             val desc = (node.contentDescription ?: node.text ?: "").toString().trim().lowercase()
             val resId = node.viewIdResourceName.orEmpty()
 
-            if (desc.contains("đã thích") || desc.contains("bỏ thích") ||
+            if (desc.contains("đã thích") || desc.contains("da thich") || desc.contains("bỏ thích") || desc.contains("bo thich") ||
                 ((resId.endsWith(":id/g86") || resId.endsWith(":id/g8m")) && node.isSelected)
             ) {
                 return "already"
             }
 
-            if (desc == "thích" || desc == "thích video" || desc.contains("lượt thích") ||
+            if (desc == "thích" || desc == "thich" || desc == "thích video" || desc.contains("lượt thích") ||
+                desc == "like" || desc == "like video" ||
                 resId.endsWith(":id/g8m") || resId.endsWith(":id/g86")
             ) {
                 if (clickNodeOrCoordinates(node)) {

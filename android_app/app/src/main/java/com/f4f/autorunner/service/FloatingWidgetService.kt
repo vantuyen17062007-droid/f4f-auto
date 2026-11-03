@@ -1,5 +1,6 @@
 package com.f4f.autorunner.service
 
+import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -19,13 +20,19 @@ class FloatingWidgetService : Service() {
         var instance: FloatingWidgetService? = null
             private set
 
+        var onStopRequested: (() -> Unit)? = null
+
         fun updateStatus(text: String) {
-            instance?.floatingView?.findViewById<TextView>(R.id.tv_floating_status)?.text = text
+            val inst = instance ?: return
+            inst.floatingView?.post {
+                inst.floatingView?.findViewById<TextView>(R.id.tv_floating_status)?.text = text
+            }
         }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -54,13 +61,14 @@ class FloatingWidgetService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         windowManager?.addView(floatingView, params)
 
-        // Hỗ trợ kéo thả bong bóng trên màn hình
+        // Hỗ trợ kéo thả bong bóng trên vùng drag_area
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
 
-        floatingView?.setOnTouchListener { view, event ->
+        val dragArea = floatingView?.findViewById<View>(R.id.drag_area) ?: floatingView
+        dragArea?.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = params.x
@@ -80,6 +88,7 @@ class FloatingWidgetService : Service() {
         }
 
         floatingView?.findViewById<ImageButton>(R.id.btn_floating_stop)?.setOnClickListener {
+            onStopRequested?.invoke()
             stopSelf()
         }
     }
@@ -88,7 +97,9 @@ class FloatingWidgetService : Service() {
         super.onDestroy()
         instance = null
         if (floatingView != null) {
-            windowManager?.removeView(floatingView)
+            try {
+                windowManager?.removeView(floatingView)
+            } catch (_: Exception) {}
         }
     }
 }

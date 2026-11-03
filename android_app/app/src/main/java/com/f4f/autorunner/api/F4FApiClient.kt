@@ -1,7 +1,9 @@
 package com.f4f.autorunner.api
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -119,10 +121,31 @@ class F4FApiClient {
         val res = request(
             "GET",
             "/user/account/list",
-            AccountListData::class.java,
+            JsonElement::class.java,
             queryParams = mapOf("type" to platform.lowercase(), "page" to "1")
         )
-        return res.data?.list.orEmpty()
+        val dataElement = res.data ?: return emptyList()
+
+        return try {
+            if (dataElement.isJsonObject) {
+                val obj = dataElement.asJsonObject
+                if (obj.has("data") && obj.get("data").isJsonArray) {
+                    val listType = object : TypeToken<List<SocialAccount>>() {}.type
+                    gson.fromJson(obj.get("data"), listType)
+                } else {
+                    val listType = object : TypeToken<AccountListData>() {}.type
+                    val accData: AccountListData? = gson.fromJson(obj, listType)
+                    accData?.list.orEmpty()
+                }
+            } else if (dataElement.isJsonArray) {
+                val listType = object : TypeToken<List<SocialAccount>>() {}.type
+                gson.fromJson(dataElement, listType)
+            } else {
+                emptyList()
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun getJobs(platform: String, uid: String, typeJob: String = "follow"): List<F4FJob> {
@@ -168,19 +191,23 @@ class F4FApiClient {
         uid: String,
         objectId: String
     ): Boolean {
-        val payload = mapOf(
-            "job_id" to jobId,
-            "account_id" to accountId,
-            "uid" to uid,
-            "object_id" to objectId,
-            "type" to platform.lowercase()
-        )
-        val res = request(
-            "POST",
-            "/user/earn-coin/skip-job",
-            Any::class.java,
-            jsonBody = gson.toJson(payload)
-        )
-        return res.statusCode == 200
+        return try {
+            val payload = mapOf(
+                "job_id" to jobId,
+                "account_id" to accountId,
+                "uid" to uid,
+                "object_id" to objectId,
+                "type" to platform.lowercase()
+            )
+            val res = request(
+                "POST",
+                "/user/earn-coin/skip-job",
+                Any::class.java,
+                jsonBody = gson.toJson(payload)
+            )
+            res.statusCode == 200
+        } catch (_: Exception) {
+            false
+        }
     }
 }

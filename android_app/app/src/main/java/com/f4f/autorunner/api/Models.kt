@@ -14,14 +14,19 @@ data class LoginData(
 )
 
 data class UserInfo(
-    @SerializedName("id") val id: Long,
-    @SerializedName("username") val username: String,
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("username") val username: String? = null,
     @SerializedName("balance") val balance: Any? = null,
     @SerializedName("balance_pending") val balancePending: Any? = null
 ) {
     fun getDisplayBalance(): String {
         val raw = balance?.toString() ?: "0"
         return if (raw.contains("coin") || raw.contains("xu")) raw else "$raw xu"
+    }
+
+    fun getNumericBalance(): Int {
+        val digits = balance?.toString()?.filter { it.isDigit() }
+        return digits?.toIntOrNull() ?: 0
     }
 }
 
@@ -30,12 +35,15 @@ data class AccountListData(
 )
 
 data class SocialAccount(
-    @SerializedName("id") val id: Long,
+    @SerializedName("id") val id: Long? = null,
     @SerializedName("name") val name: String? = null,
     @SerializedName("username") val username: String? = null,
     @SerializedName("uid") val uid: String? = null,
     @SerializedName("status") val status: String? = null
-)
+) {
+    fun getId(): Long = id ?: 0L
+    fun getDisplayName(): String = username ?: name ?: uid ?: "Tài khoản #$id"
+}
 
 data class JobListData(
     @SerializedName("jobs") val jobs: List<F4FJob>? = null

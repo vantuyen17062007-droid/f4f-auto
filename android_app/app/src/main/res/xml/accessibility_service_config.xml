@@ -5,6 +5,5 @@
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
-    android:packageNames="com.ss.android.ugc.trill,com.zhiliaoapp.musically,com.zhiliaoapp.musically.go,com.instagram.android,com.instagram.lite"
     android:notificationTimeout="100"
     android:description="@string/accessibility_service_desc" />
