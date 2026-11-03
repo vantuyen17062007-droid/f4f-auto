@@ -3,58 +3,263 @@
     android:id="@+id/root_floating"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_floating_card"
-    android:elevation="10dp"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingStart="8dp"
-    android:paddingTop="6dp"
-    android:paddingEnd="8dp"
-    android:paddingBottom="6dp">
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
 
-    <!-- Draggable area -->
+    <!-- MAIN FLOATING POPUP CARD -->
     <LinearLayout
-        android:id="@+id/drag_area"
-        android:layout_width="wrap_content"
+        android:id="@+id/card_floating_content"
+        android:layout_width="290dp"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:background="@drawable/bg_floating_card"
+        android:elevation="12dp"
+        android:orientation="vertical"
+        android:padding="14dp">
 
-        <TextView
-            android:id="@+id/dot_floating_status"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/circle_green" />
-
-        <TextView
-            android:id="@+id/tv_floating_status"
-            android:layout_width="wrap_content"
+        <!-- Header: Logo, Title, Status, Minimize, Close -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="F4F: +0 xu"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_f_logo"
+                android:contentDescription="Logo" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="F4F AutoRunner"
+                    android:textColor="@color/text_white"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/dot_floating_indicator"
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/circle_green" />
+
+                    <TextView
+                        android:id="@+id/tv_floating_status_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Đang chạy • 0h 00m"
+                        android:textColor="@color/text_sub"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btn_floating_minimize"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:gravity="center"
+                android:text="—"
+                android:textColor="@color/text_sub"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_floating_close"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="@color/text_sub"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- 3 Round Control Buttons -->
+        <LinearLayout
+            android:id="@+id/box_floating_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <!-- Resume/Play Button -->
+            <LinearLayout
+                android:id="@+id/btn_floating_resume"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_circle_purple"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_play"
+                    android:contentDescription="Tiếp tục" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Tiếp tục"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- Pause Button -->
+            <LinearLayout
+                android:id="@+id/btn_floating_pause"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_circle_navy"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_pause"
+                    android:contentDescription="Tạm dừng" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Tạm dừng"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- Stop Button -->
+            <LinearLayout
+                android:id="@+id/btn_floating_stop"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_circle_red"
+                    android:padding="13dp"
+                    android:src="@drawable/ic_stop"
+                    android:contentDescription="Dừng" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Dừng"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Stats Bottom Bar: Thành công vs Thất bại -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="#191B33"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp">
+
+            <!-- Success count -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_check_circle"
+                    android:contentDescription="Success" />
+
+                <TextView
+                    android:id="@+id/tv_floating_success"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="0 Thành công"
+                    android:textColor="@color/text_white"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Failed count -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_close_circle"
+                    android:contentDescription="Failed" />
+
+                <TextView
+                    android:id="@+id/tv_floating_failed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="0 Thất bại"
+                    android:textColor="@color/status_red"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- Pause / Resume button -->
-    <ImageButton
-        android:id="@+id/btn_floating_pause"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_pause"
-        android:contentDescription="Pause/Resume" />
+    <!-- Draggable Pill Handle at Bottom -->
+    <LinearLayout
+        android:id="@+id/drag_handle_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_pill_active"
+        android:elevation="14dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp">
 
-    <!-- Stop button -->
-    <ImageButton
-        android:id="@+id/btn_floating_stop"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="4dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_stop"
-        android:contentDescription="Stop Auto" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✥ Kéo để di chuyển"
+            android:textColor="@color/text_white"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
 </LinearLayout>

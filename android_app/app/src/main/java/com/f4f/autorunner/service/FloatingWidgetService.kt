@@ -9,7 +9,6 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.*
-import android.widget.ImageButton
 import android.widget.TextView
 import com.f4f.autorunner.R
 import com.f4f.autorunner.controller.RunnerController
@@ -22,6 +21,7 @@ class FloatingWidgetService : Service() {
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var startTimeMs: Long = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -47,20 +47,22 @@ class FloatingWidgetService : Service() {
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = 40
-            y = 220
+            y = 200
         }
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         windowManager?.addView(floatingView, params)
 
-        // Drag handler
+        startTimeMs = System.currentTimeMillis()
+
+        // Drag handler via drag_handle_pill
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
 
-        val dragArea = floatingView?.findViewById<View>(R.id.drag_area) ?: floatingView
-        dragArea?.setOnTouchListener { _, event ->
+        val dragPill = floatingView?.findViewById<View>(R.id.drag_handle_pill) ?: floatingView
+        dragPill?.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = params.x
@@ -81,17 +83,24 @@ class FloatingWidgetService : Service() {
             }
         }
 
-        val btnPause = floatingView?.findViewById<ImageButton>(R.id.btn_floating_pause)
-        val btnStop = floatingView?.findViewById<ImageButton>(R.id.btn_floating_stop)
-        val tvStatus = floatingView?.findViewById<TextView>(R.id.tv_floating_status)
-        val dotStatus = floatingView?.findViewById<TextView>(R.id.dot_floating_status)
+        val btnResume = floatingView?.findViewById<View>(R.id.btn_floating_resume)
+        val btnPause = floatingView?.findViewById<View>(R.id.btn_floating_pause)
+        val btnStop = floatingView?.findViewById<View>(R.id.btn_floating_stop)
+        val btnMinimize = floatingView?.findViewById<View>(R.id.btn_floating_minimize)
+        val btnClose = floatingView?.findViewById<View>(R.id.btn_floating_close)
+
+        val tvStatusTime = floatingView?.findViewById<TextView>(R.id.tv_floating_status_time)
+        val dotIndicator = floatingView?.findViewById<TextView>(R.id.dot_floating_indicator)
+        val tvSuccess = floatingView?.findViewById<TextView>(R.id.tv_floating_success)
+        val tvFailed = floatingView?.findViewById<TextView>(R.id.tv_floating_failed)
+        val boxButtons = floatingView?.findViewById<View>(R.id.box_floating_buttons)
+
+        btnResume?.setOnClickListener {
+            RunnerController.resume()
+        }
 
         btnPause?.setOnClickListener {
-            if (RunnerController.isRunning) {
-                RunnerController.pause()
-            } else if (RunnerController.isPaused) {
-                RunnerController.resume()
-            }
+            RunnerController.pause()
         }
 
         btnStop?.setOnClickListener {
@@ -99,30 +108,55 @@ class FloatingWidgetService : Service() {
             stopSelf()
         }
 
-        // Lắng nghe trạng thái từ RunnerController
+        btnMinimize?.setOnClickListener {
+            if (boxButtons?.visibility == View.VISIBLE) {
+                boxButtons.visibility = View.GONE
+            } else {
+                boxButtons?.visibility = View.VISIBLE
+            }
+        }
+
+        btnClose?.setOnClickListener {
+            stopSelf()
+        }
+
+        // Lắng nghe trạng thái
         serviceScope.launch {
             RunnerController.state.collectLatest { state ->
                 when (state) {
                     RunnerState.RUNNING -> {
-                        dotStatus?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
-                        btnPause?.setImageResource(R.drawable.ic_pause)
+                        dotIndicator?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
                     }
                     RunnerState.PAUSED -> {
-                        dotStatus?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F59E0B"))
-                        btnPause?.setImageResource(R.drawable.ic_play)
+                        dotIndicator?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F59E0B"))
                     }
                     RunnerState.STOPPED, RunnerState.IDLE -> {
-                        dotStatus?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#EF4444"))
+                        dotIndicator?.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#EF4444"))
                         stopSelf()
                     }
                 }
             }
         }
 
-        // Lắng nghe số liệu kiếm coin
+        // Lắng nghe thống kê
         serviceScope.launch {
             RunnerController.stats.collectLatest { stats ->
-                tvStatus?.text = "Xu: +${stats.coinsEarned} | Job: ${stats.followed + stats.liked}"
+                val completed = stats.followed + stats.liked
+                val failed = stats.skipped + stats.errors
+                tvSuccess?.text = "$completed Thành công"
+                tvFailed?.text = "$failed Thất bại"
+            }
+        }
+
+        // Cập nhật bộ đếm thời gian mỗi giây
+        serviceScope.launch {
+            while (isActive) {
+                val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
+                val hours = elapsedSec / 3600
+                val mins = (elapsedSec % 3600) / 60
+                val stateName = if (RunnerController.isPaused) "Tạm dừng" else "Đang chạy"
+                tvStatusTime?.text = "$stateName • ${hours}h ${mins}m"
+                delay(1000)
             }
         }
     }

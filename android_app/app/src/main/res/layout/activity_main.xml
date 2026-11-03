@@ -5,14 +5,14 @@
     android:layout_height="match_parent"
     android:background="@color/bg_dark">
 
-    <!-- MAIN CONTAINER HOLDING 4 TAB VIEWS -->
+    <!-- MAIN CONTAINER HOLDING THE 4 TABS -->
     <FrameLayout
         android:id="@+id/container_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/bottom_navigation">
 
-        <!-- ==================== TAB 1: TỔNG QUAN (DASHBOARD) ==================== -->
+        <!-- ==================== TAB 1: TRANG CHỦ (DASHBOARD) ==================== -->
         <ScrollView
             android:id="@+id/view_dashboard"
             android:layout_width="match_parent"
@@ -28,25 +28,71 @@
                 android:padding="16dp">
 
                 <!-- 1. HEADER BRAND -->
-                <LinearLayout
+                <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_card_premium"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
-
-                    <ImageView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:src="@drawable/ic_launcher"
-                        android:contentDescription="App Logo" />
+                    android:layout_marginTop="4dp">
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="14dp"
-                        android:layout_weight="1"
+                        android:layout_alignParentStart="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_f_logo"
+                            android:contentDescription="F4F Logo" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="F4F AutoRunner"
+                                android:textColor="@color/text_white"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Follow • Like • Grow"
+                                android:textColor="@color/text_sub"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/btn_dash_quick_settings"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="6dp"
+                        android:src="@drawable/ic_settings"
+                        android:contentDescription="Settings" />
+                </RelativeLayout>
+
+                <!-- 2. HERO CARD (READY STATUS + ROCKET ICON) -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_hero_card"
+                    android:padding="18dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_toStartOf="@id/iv_hero_rocket"
                         android:orientation="vertical">
 
                         <LinearLayout
@@ -56,48 +102,52 @@
                             android:orientation="horizontal">
 
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="F4F AutoRunner"
-                                android:textColor="@color/text_white"
-                                android:textSize="17sp"
-                                android:textStyle="bold" />
+                                android:id="@+id/dot_hero_status"
+                                android:layout_width="8dp"
+                                android:layout_height="8dp"
+                                android:background="@drawable/circle_green" />
 
                             <TextView
+                                android:id="@+id/tv_hero_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:background="#2000E676"
-                                android:paddingStart="6dp"
-                                android:paddingTop="2dp"
-                                android:paddingEnd="6dp"
-                                android:paddingBottom="2dp"
-                                android:text="PRO v2.0"
-                                android:textColor="@color/primary_neon"
-                                android:textSize="10sp"
+                                android:text="Đang sẵn sàng"
+                                android:textColor="@color/text_white"
+                                android:textSize="16sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
                         <TextView
-                            android:id="@+id/tv_dash_system_status"
+                            android:id="@+id/tv_hero_subtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:text="Hệ thống sẵn sàng • Chế độ Trợ năng"
+                            android:layout_marginTop="4dp"
+                            android:text="Nhấn START để bắt đầu auto"
                             android:textColor="@color/text_sub"
                             android:textSize="12sp" />
                     </LinearLayout>
-                </LinearLayout>
 
-                <!-- 2. QUICK PERMISSION CHIPS -->
+                    <ImageView
+                        android:id="@+id/iv_hero_rocket"
+                        android:layout_width="54dp"
+                        android:layout_height="54dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:src="@drawable/ic_rocket"
+                        android:contentDescription="Rocket" />
+                </RelativeLayout>
+
+                <!-- 3. PLATFORM CONNECTION STATUS CARDS -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:orientation="horizontal">
 
+                    <!-- TikTok Status -->
                     <LinearLayout
-                        android:id="@+id/btn_dash_accessibility"
+                        android:id="@+id/card_status_tiktok"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="6dp"
@@ -107,25 +157,46 @@
                         android:orientation="horizontal"
                         android:padding="12dp">
 
-                        <TextView
-                            android:id="@+id/dot_dash_accessibility"
-                            android:layout_width="10dp"
-                            android:layout_height="10dp"
-                            android:background="@drawable/circle_green" />
+                        <ImageView
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:src="@drawable/ic_tiktok"
+                            android:contentDescription="TikTok" />
 
-                        <TextView
-                            android:id="@+id/tv_dash_accessibility"
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="Trợ năng: BẬT"
-                            android:textColor="@color/text_white"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TikTok"
+                                android:textColor="@color/text_white"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_tiktok_conn_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Đã kết nối"
+                                android:textColor="@color/text_sub"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_check_circle"
+                            android:contentDescription="Connected" />
                     </LinearLayout>
 
+                    <!-- Instagram Status -->
                     <LinearLayout
-                        android:id="@+id/btn_dash_overlay"
+                        android:id="@+id/card_status_instagram"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
@@ -135,160 +206,58 @@
                         android:orientation="horizontal"
                         android:padding="12dp">
 
-                        <TextView
-                            android:id="@+id/dot_dash_overlay"
-                            android:layout_width="10dp"
-                            android:layout_height="10dp"
-                            android:background="@drawable/circle_green" />
-
-                        <TextView
-                            android:id="@+id/tv_dash_overlay"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="Bong bóng: ĐÃ CẤP"
-                            android:textColor="@color/text_white"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </LinearLayout>
-
-                <!-- 3. F4F ACCOUNT & PROFILE CARD -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_card_premium"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="TÀI KHOẢN FOLLOW4FOLLOW"
-                        android:textColor="@color/cyan_neon"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
-                    <!-- Login Form (visible when logged out) -->
-                    <LinearLayout
-                        android:id="@+id/box_login_form"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <EditText
-                            android:id="@+id/et_f4f_user"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:layout_marginTop="10dp"
-                            android:background="@drawable/bg_input_field"
-                            android:hint="Tên đăng nhập F4F"
-                            android:paddingStart="14dp"
-                            android:paddingEnd="14dp"
-                            android:textColor="@color/text_white"
-                            android:textColorHint="@color/text_muted"
-                            android:textSize="14sp" />
-
-                        <EditText
-                            android:id="@+id/et_f4f_pass"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:layout_marginTop="8dp"
-                            android:background="@drawable/bg_input_field"
-                            android:hint="Mật khẩu"
-                            android:inputType="textPassword"
-                            android:paddingStart="14dp"
-                            android:paddingEnd="14dp"
-                            android:textColor="@color/text_white"
-                            android:textColorHint="@color/text_muted"
-                            android:textSize="14sp" />
-
-                        <Button
-                            android:id="@+id/btn_login"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:layout_marginTop="10dp"
-                            android:background="@drawable/bg_btn_secondary"
-                            android:text="Đăng nhập &amp; Tải tài khoản"
-                            android:textColor="@color/cyan_neon"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                    <!-- Profile Banner (visible when logged in) -->
-                    <LinearLayout
-                        android:id="@+id/box_profile_info"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:background="#162033"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:visibility="gone">
+                        <ImageView
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:src="@drawable/ic_instagram"
+                            android:contentDescription="Instagram" />
 
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
-                                android:id="@+id/tv_profile_name"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@username"
+                                android:text="Instagram"
                                 android:textColor="@color/text_white"
-                                android:textSize="15sp"
+                                android:textSize="13sp"
                                 android:textStyle="bold" />
 
                             <TextView
+                                android:id="@+id/tv_instagram_conn_status"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Đã kết nối F4F API"
+                                android:text="Đã kết nối"
                                 android:textColor="@color/text_sub"
                                 android:textSize="11sp" />
                         </LinearLayout>
 
-                        <TextView
-                            android:id="@+id/tv_profile_balance"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:background="#20FFD700"
-                            android:paddingStart="10dp"
-                            android:paddingTop="5dp"
-                            android:paddingEnd="10dp"
-                            android:paddingBottom="5dp"
-                            android:text="🪙 0 xu"
-                            android:textColor="@color/gold_coin"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_check_circle"
+                            android:contentDescription="Connected" />
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- 4. LIVE SESSION STATS CARDS (4 STATS GRID) -->
+                <!-- 4. STATS 4-GRID (HOÀN THÀNH, THẤT BẠI, THỜI GIAN CHẠY, TỔNG JOB) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="THỐNG KÊ PHIÊN CHẠY HIỆN TẠI"
-                        android:textColor="@color/text_sub"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <!-- Row 1: Follow & Like -->
+                    <!-- Row 1: Hoàn thành & Thất bại -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal">
 
+                        <!-- Hoàn thành -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -296,26 +265,41 @@
                             android:layout_weight="1"
                             android:background="@drawable/bg_card_premium"
                             android:orientation="vertical"
-                            android:padding="12dp">
+                            android:padding="14dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Đã Follow"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_check_circle"
+                                    android:contentDescription="Success" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="Hoàn thành"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
 
                             <TextView
-                                android:id="@+id/tv_stat_followed"
+                                android:id="@+id/tv_dash_stat_completed"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="6dp"
                                 android:text="0"
-                                android:textColor="@color/primary_neon"
-                                android:textSize="20sp"
+                                android:textColor="@color/text_white"
+                                android:textSize="22sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
+                        <!-- Thất bại -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -323,34 +307,49 @@
                             android:layout_weight="1"
                             android:background="@drawable/bg_card_premium"
                             android:orientation="vertical"
-                            android:padding="12dp">
+                            android:padding="14dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Đã Like"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_close_circle"
+                                    android:contentDescription="Failed" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="Thất bại"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
 
                             <TextView
-                                android:id="@+id/tv_stat_liked"
+                                android:id="@+id/tv_dash_stat_failed"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="6dp"
                                 android:text="0"
-                                android:textColor="@color/cyan_neon"
-                                android:textSize="20sp"
+                                android:textColor="@color/text_white"
+                                android:textSize="22sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- Row 2: Xu nhận & Lỗi/Bỏ qua -->
+                    <!-- Row 2: Thời gian chạy & Tổng Job -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
+                        <!-- Thời gian chạy -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -358,26 +357,41 @@
                             android:layout_weight="1"
                             android:background="@drawable/bg_card_premium"
                             android:orientation="vertical"
-                            android:padding="12dp">
+                            android:padding="14dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Xu tích lũy phiên"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_clock"
+                                    android:contentDescription="Time" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="Thời gian chạy"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
 
                             <TextView
-                                android:id="@+id/tv_stat_coins"
+                                android:id="@+id/tv_dash_stat_time"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:text="+0"
-                                android:textColor="@color/gold_coin"
-                                android:textSize="20sp"
+                                android:layout_marginTop="6dp"
+                                android:text="0h 00m"
+                                android:textColor="@color/text_white"
+                                android:textSize="22sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
+                        <!-- Tổng Job -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -385,54 +399,68 @@
                             android:layout_weight="1"
                             android:background="@drawable/bg_card_premium"
                             android:orientation="vertical"
-                            android:padding="12dp">
+                            android:padding="14dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Bỏ qua / Lỗi"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_layers"
+                                    android:contentDescription="Total Jobs" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="Tổng Job"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
 
                             <TextView
-                                android:id="@+id/tv_stat_skipped"
+                                android:id="@+id/tv_dash_stat_total"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginTop="6dp"
                                 android:text="0"
-                                android:textColor="@color/status_red"
-                                android:textSize="20sp"
+                                android:textColor="@color/text_white"
+                                android:textSize="22sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- 5. MAIN ACTION CONTROLLER BUTTONS -->
+                <!-- 5. MAIN ACTION CONTROLLERS (BẮT ĐẦU / TẠM DỪNG / DỪNG) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:orientation="vertical">
 
+                    <!-- Big Start Button -->
                     <Button
                         android:id="@+id/btn_dash_start"
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_btn_primary"
-                        android:elevation="4dp"
-                        android:text="🚀 BẮT ĐẦU CHẠY AUTO"
-                        android:textColor="#05080E"
-                        android:textSize="15sp"
+                        android:layout_height="54dp"
+                        android:background="@drawable/bg_btn_gradient"
+                        android:elevation="6dp"
+                        android:text="▶  BẮT ĐẦU"
+                        android:textColor="@color/text_white"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- Secondary Controls (visible when running/paused) -->
+                    <!-- Sub controls (Pause and Stop) -->
                     <LinearLayout
                         android:id="@+id/box_running_controls"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
 
                         <Button
                             android:id="@+id/btn_dash_pause"
@@ -441,9 +469,9 @@
                             android:layout_marginEnd="6dp"
                             android:layout_weight="1"
                             android:background="@drawable/bg_btn_secondary"
-                            android:text="⏸ Tạm dừng"
-                            android:textColor="@color/status_amber"
-                            android:textSize="14sp"
+                            android:text="⏸  TẠM DỪNG"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp"
                             android:textStyle="bold" />
 
                         <Button
@@ -452,10 +480,10 @@
                             android:layout_height="48dp"
                             android:layout_marginStart="6dp"
                             android:layout_weight="1"
-                            android:background="@drawable/bg_btn_danger"
-                            android:text="⏹ Dừng hẳn"
-                            android:textColor="@color/text_white"
-                            android:textSize="14sp"
+                            android:background="@drawable/bg_btn_secondary"
+                            android:text="⏹  DỪNG"
+                            android:textColor="@color/status_red"
+                            android:textSize="13sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -463,7 +491,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- ==================== TAB 2: TÁC VỤ (TASKS & CONFIG) ==================== -->
+        <!-- ==================== TAB 2: TÁC VỤ (TASKS & CAMPAIGN) ==================== -->
         <ScrollView
             android:id="@+id/view_tasks"
             android:layout_width="match_parent"
@@ -478,88 +506,107 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="CẤU HÌNH CHIẾN DỊCH TÁC VỤ"
-                    android:textColor="@color/cyan_neon"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Tùy biến nền tảng, tài khoản liên kết và thông số an toàn"
-                    android:textColor="@color/text_sub"
-                    android:textSize="12sp" />
-
-                <!-- Platform selection card -->
-                <LinearLayout
+                <!-- Header: Back, Title, Help -->
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_card_premium"
-                    android:orientation="vertical"
-                    android:padding="14dp">
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/btn_tasks_back"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:gravity="center"
+                        android:text="←"
+                        android:textColor="@color/text_white"
+                        android:textSize="22sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Chọn nền tảng mục tiêu:"
+                        android:layout_centerInParent="true"
+                        android:text="Tác vụ"
                         android:textColor="@color/text_white"
-                        android:textSize="13sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
-                    <RadioGroup
-                        android:id="@+id/rg_platform"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                    <ImageView
+                        android:id="@+id/btn_tasks_help"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:padding="6dp"
+                        android:src="@drawable/ic_help"
+                        android:contentDescription="Help" />
+                </RelativeLayout>
+
+                <!-- Platform Segment Pill Toggle -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_card_secondary"
+                    android:orientation="horizontal"
+                    android:padding="4dp">
+
+                    <LinearLayout
+                        android:id="@+id/btn_segment_tiktok"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_pill_active"
+                        android:gravity="center"
                         android:orientation="horizontal">
 
-                        <RadioButton
-                            android:id="@+id/rb_tiktok"
-                            android:layout_width="0dp"
-                            android:layout_height="44dp"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_input_field"
-                            android:button="@null"
-                            android:checked="true"
-                            android:drawableStart="@drawable/ic_tiktok"
-                            android:gravity="center"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:text="TikTok (+26 xu)"
-                            android:textColor="@color/text_white"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:src="@drawable/ic_tiktok"
+                            android:contentDescription="TikTok" />
 
-                        <RadioButton
-                            android:id="@+id/rb_instagram"
-                            android:layout_width="0dp"
-                            android:layout_height="44dp"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_input_field"
-                            android:button="@null"
-                            android:drawableStart="@drawable/ic_instagram"
-                            android:gravity="center"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:text="Instagram (+35 xu)"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="TikTok"
                             android:textColor="@color/text_white"
                             android:textSize="13sp"
                             android:textStyle="bold" />
-                    </RadioGroup>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btn_segment_instagram"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:src="@drawable/ic_instagram"
+                            android:contentDescription="Instagram" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="Instagram"
+                            android:textColor="@color/text_sub"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <!-- Linked Account selection -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:background="@drawable/bg_card_premium"
                     android:orientation="vertical"
                     android:padding="14dp">
@@ -567,7 +614,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tài khoản MXH làm việc:"
+                        android:text="Tài khoản làm việc:"
                         android:textColor="@color/text_white"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -575,22 +622,207 @@
                     <Spinner
                         android:id="@+id/sp_accounts"
                         android:layout_width="match_parent"
-                        android:layout_height="46dp"
+                        android:layout_height="44dp"
                         android:layout_marginTop="6dp"
                         android:background="@drawable/bg_input_field"
                         android:paddingStart="10dp"
                         android:paddingEnd="10dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Nick chọn tại đây phải là nick đang đăng nhập trong app TikTok/Instagram trên máy."
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- Parameters: Max Jobs & Delay Range -->
+                <!-- Loại Job Card -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_card_premium"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Loại Job"
+                            android:textColor="@color/text_white"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Chọn loại nhiệm vụ"
+                            android:textColor="@color/text_sub"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <Spinner
+                        android:id="@+id/sp_job_type"
+                        android:layout_width="140dp"
+                        android:layout_height="40dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_stepper"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp" />
+                </RelativeLayout>
+
+                <!-- Số lượng Job Card with Stepper -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_card_premium"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Số lượng Job"
+                            android:textColor="@color/text_white"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Số job cần thực hiện"
+                            android:textColor="@color/text_sub"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <!-- Stepper -->
+                    <LinearLayout
+                        android:layout_width="140dp"
+                        android:layout_height="40dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_stepper"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btn_stepper_jobs_minus"
+                            android:layout_width="36dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="—"
+                            android:textColor="@color/text_sub"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_stepper_jobs_value"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="100"
+                            android:textColor="@color/text_white"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btn_stepper_jobs_plus"
+                            android:layout_width="36dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="+"
+                            android:textColor="@color/text_sub"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </RelativeLayout>
+
+                <!-- Delay (giây) Card with Stepper -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_card_premium"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Delay (giây)"
+                            android:textColor="@color/text_white"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Thời gian giữa các job"
+                            android:textColor="@color/text_sub"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <!-- Stepper -->
+                    <LinearLayout
+                        android:layout_width="140dp"
+                        android:layout_height="40dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_stepper"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btn_stepper_delay_minus"
+                            android:layout_width="36dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="—"
+                            android:textColor="@color/text_sub"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_stepper_delay_value"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="8 - 18"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btn_stepper_delay_plus"
+                            android:layout_width="36dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="+"
+                            android:textColor="@color/text_sub"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </RelativeLayout>
+
+                <!-- Expandable: Tùy chọn nâng cao -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -599,101 +831,126 @@
                     android:orientation="vertical"
                     android:padding="14dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Thông số tốc độ &amp; An toàn:"
-                        android:textColor="@color/text_white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <LinearLayout
+                    <RelativeLayout
+                        android:id="@+id/header_advanced_options"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
+                        android:layout_height="wrap_content">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
+                            android:text="Tùy chọn nâng cao"
+                            android:textColor="@color/text_purple_light"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Mục tiêu số jobs:"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
-
-                            <EditText
-                                android:id="@+id/et_max_jobs"
-                                android:layout_width="match_parent"
-                                android:layout_height="44dp"
-                                android:layout_marginTop="4dp"
-                                android:background="@drawable/bg_input_field"
-                                android:hint="50"
-                                android:inputType="number"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:textColor="@color/text_white"
-                                android:textColorHint="@color/text_muted"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
+                        <TextView
+                            android:id="@+id/iv_advanced_arrow"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
+                            android:layout_alignParentEnd="true"
+                            android:text="▲"
+                            android:textColor="@color/text_purple_light"
+                            android:textSize="12sp" />
+                    </RelativeLayout>
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Delay nghỉ (giây):"
-                                android:textColor="@color/text_sub"
-                                android:textSize="11sp" />
-
-                            <EditText
-                                android:id="@+id/et_delay"
-                                android:layout_width="match_parent"
-                                android:layout_height="44dp"
-                                android:layout_marginTop="4dp"
-                                android:background="@drawable/bg_input_field"
-                                android:hint="8-18"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:textColor="@color/text_white"
-                                android:textColorHint="@color/text_muted"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <!-- Anti-ban checkbox -->
-                    <CheckBox
-                        android:id="@+id/cb_antiban"
+                    <!-- Expandable content -->
+                    <LinearLayout
+                        android:id="@+id/box_advanced_options"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:checked="true"
-                        android:text="Bật mô phỏng lướt feed chống checkpoint (Khuyên dùng)"
-                        android:textColor="@color/text_white"
-                        android:textSize="12sp" />
+                        android:orientation="vertical">
 
-                    <!-- Floating bubble toggle -->
-                    <CheckBox
-                        android:id="@+id/cb_floating_widget"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:checked="true"
-                        android:text="Bật bong bóng điều khiển nổi khi mở TikTok/Instagram"
-                        android:textColor="@color/text_white"
-                        android:textSize="12sp" />
+                        <!-- Switch 1: Chạy nền -->
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentStart="true"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Chạy nền"
+                                    android:textColor="@color/text_white"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Tiếp tục chạy khi app bị thu nhỏ"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/sw_run_background"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:checked="true" />
+                        </RelativeLayout>
+
+                        <!-- Switch 2: Tự động mở app -->
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentStart="true"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Tự động mở app"
+                                    android:textColor="@color/text_white"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Mở TikTok/Instagram khi cần"
+                                    android:textColor="@color/text_sub"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/sw_auto_open_app"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:checked="true" />
+                        </RelativeLayout>
+                    </LinearLayout>
                 </LinearLayout>
 
+                <!-- Save button -->
+                <Button
+                    android:id="@+id/btn_save_settings"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/bg_btn_gradient"
+                    android:elevation="4dp"
+                    android:text="💾  LƯU CÀI ĐẶT"
+                    android:textColor="@color/text_white"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </ScrollView>
 
@@ -706,133 +963,136 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Terminal Window Top Bar -->
-            <LinearLayout
+            <!-- Top Header: Document icon + Title + Trash bin -->
+            <RelativeLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:background="#101726"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:layout_height="52dp"
+                android:background="#101222"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp">
 
-                <TextView
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:background="@drawable/circle_green"
-                    android:backgroundTint="#EF4444" />
-
-                <TextView
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/circle_green"
-                    android:backgroundTint="#F59E0B" />
-
-                <TextView
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/circle_green"
-                    android:backgroundTint="#10B981" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:fontFamily="monospace"
-                    android:text="LIVE CONSOLE LOGS"
-                    android:textColor="@color/text_white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/btn_copy_log"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:text="Sao chép"
-                    android:textColor="@color/cyan_neon"
-                    android:textSize="12sp" />
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/btn_clear_log"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Xóa sạch"
-                    android:textColor="@color/status_red"
-                    android:textSize="12sp" />
-            </LinearLayout>
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_terminal"
+                        android:contentDescription="Logs" />
 
-            <!-- Filter chips bar -->
-            <LinearLayout
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Nhật ký"
+                        android:textColor="@color/text_white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/btn_clear_log_top"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_copy"
+                    android:contentDescription="Clear Log" />
+            </RelativeLayout>
+
+            <!-- Filter Chips Horizontal Row -->
+            <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
-                android:background="#141B29"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
+                android:layout_height="wrap_content"
+                android:background="#131424"
+                android:padding="8dp"
+                android:scrollbars="none">
 
-                <TextView
-                    android:id="@+id/filter_all"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="#2B3B56"
-                    android:paddingStart="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="3dp"
-                    android:text="Tất cả"
-                    android:textColor="@color/text_white"
-                    android:textSize="11sp" />
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/filter_success"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:paddingStart="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="3dp"
-                    android:text="Thành công"
-                    android:textColor="@color/text_sub"
-                    android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/chip_filter_all"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:background="@drawable/bg_pill_active"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Tất cả"
+                        android:textColor="@color/text_white"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/filter_warn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:paddingStart="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="3dp"
-                    android:text="Cảnh báo"
-                    android:textColor="@color/text_sub"
-                    android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/chip_filter_info"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_pill_inactive"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="INFO"
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp" />
 
-                <TextView
-                    android:id="@+id/filter_error"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:paddingStart="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="3dp"
-                    android:text="Lỗi"
-                    android:textColor="@color/text_sub"
-                    android:textSize="11sp" />
-            </LinearLayout>
+                    <TextView
+                        android:id="@+id/chip_filter_success"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_pill_inactive"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Thành công"
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp" />
 
-            <!-- Console Log ScrollView -->
+                    <TextView
+                        android:id="@+id/chip_filter_warn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_pill_inactive"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Cảnh báo"
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/chip_filter_error"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_pill_inactive"
+                        android:gravity="center"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Lỗi"
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <!-- Log Entries ScrollView -->
             <ScrollView
                 android:id="@+id/scroll_logs"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:background="@color/terminal_bg"
                 android:padding="12dp">
 
@@ -841,11 +1101,42 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
-                    android:lineSpacingExtra="4dp"
-                    android:text="[00:00:00] [INFO] F4F AutoRunner sẵn sàng.\n"
-                    android:textColor="@color/primary_neon"
+                    android:lineSpacingExtra="5dp"
+                    android:text="[09:41:23] [INFO] Bắt đầu phiên AutoRunner...\n"
+                    android:textColor="@color/text_white"
                     android:textSize="12sp" />
             </ScrollView>
+
+            <!-- Bottom Action Buttons: Sao chép & Xóa log -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#101222"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <Button
+                    android:id="@+id/btn_copy_log"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:text="📋  Sao chép"
+                    android:textColor="@color/text_white"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_clear_log"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_btn_secondary"
+                    android:text="🗑  Xóa log"
+                    android:textColor="@color/text_white"
+                    android:textSize="13sp" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ==================== TAB 4: CÀI ĐẶT (SETTINGS) ==================== -->
@@ -863,118 +1154,296 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <!-- Header -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_settings"
+                        android:contentDescription="Settings" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Cài đặt"
+                        android:textColor="@color/text_white"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Section: Tài khoản -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="CÀI ĐẶT &amp; HƯỚNG DẪN"
-                    android:textColor="@color/cyan_neon"
-                    android:textSize="14sp"
+                    android:layout_marginTop="16dp"
+                    android:text="Tài khoản"
+                    android:textColor="@color/text_sub"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
 
-                <!-- Account Management -->
-                <LinearLayout
+                <!-- Account Card -->
+                <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:background="@drawable/bg_card_premium"
-                    android:orientation="vertical"
                     android:padding="14dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Quản lý phiên đăng nhập:"
-                        android:textColor="@color/text_white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
+                    <ImageView
+                        android:id="@+id/iv_user_avatar"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_circle_purple"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_tasks"
+                        android:contentDescription="Avatar" />
 
-                    <TextView
-                        android:id="@+id/tv_settings_user_status"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Chưa đăng nhập tài khoản Follow4Follow"
-                        android:textColor="@color/text_sub"
-                        android:textSize="12sp" />
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="12dp"
+                        android:layout_toEndOf="@id/iv_user_avatar"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_settings_username"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="user123"
+                            android:textColor="@color/text_white"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_settings_userid"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="ID: 12345678"
+                            android:textColor="@color/text_sub"
+                            android:textSize="11sp" />
+                    </LinearLayout>
 
                     <Button
                         android:id="@+id/btn_logout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/bg_btn_secondary"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Đăng xuất"
+                        android:textColor="@color/text_white"
+                        android:textSize="12sp" />
+                </RelativeLayout>
+
+                <!-- Section: Cấu hình chung -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Cấu hình chung"
+                    android:textColor="@color/text_sub"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_card_premium"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <!-- Ngôn ngữ -->
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp">
+
+                        <ImageView
+                            android:id="@+id/iv_earth"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:src="@drawable/ic_earth"
+                            android:contentDescription="Language" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="12dp"
+                            android:layout_toEndOf="@id/iv_earth"
+                            android:text="Ngôn ngữ"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:text="Tiếng Việt  ›"
+                            android:textColor="@color/text_sub"
+                            android:textSize="13sp" />
+                    </RelativeLayout>
+
+                    <!-- Chế độ giao diện -->
+                    <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
-                        android:layout_marginTop="10dp"
-                        android:background="@drawable/bg_btn_danger"
-                        android:text="Đăng xuất khỏi thiết bị"
-                        android:textColor="@color/text_white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
+                        android:layout_marginTop="4dp">
+
+                        <ImageView
+                            android:id="@+id/iv_moon"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:src="@drawable/ic_moon"
+                            android:contentDescription="Dark Mode" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="12dp"
+                            android:layout_toEndOf="@id/iv_moon"
+                            android:text="Chế độ giao diện"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:text="Tối (Dark)  ▼"
+                            android:textColor="@color/text_sub"
+                            android:textSize="13sp" />
+                    </RelativeLayout>
+
+                    <!-- Thông báo -->
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="4dp">
+
+                        <ImageView
+                            android:id="@+id/iv_bell"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:src="@drawable/ic_bell"
+                            android:contentDescription="Notifications" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="12dp"
+                            android:layout_toEndOf="@id/iv_bell"
+                            android:text="Thông báo"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/sw_notifications"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:checked="true" />
+                    </RelativeLayout>
                 </LinearLayout>
 
-                <!-- Usage Guide -->
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <!-- Section: Cấu hình nâng cao -->
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_card_premium"
-                    android:orientation="vertical"
-                    android:padding="14dp">
+                    android:layout_marginTop="20dp"
+                    android:text="Cấu hình nâng cao"
+                    android:textColor="@color/text_sub"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Hướng dẫn sử dụng an toàn:"
-                        android:textColor="@color/text_white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:lineSpacingExtra="3dp"
-                        android:text="1. Cấp quyền Trợ Năng (Accessibility) để app tự động click Follow/Like.\n2. Cấp quyền Bong bóng nổi để theo dõi số xu kiếm được khi TikTok/Instagram đang mở.\n3. Đặt delay an toàn từ 8 đến 18 giây để tránh bị nền tảng kiểm tra checkpoint.\n4. Khuyến nghị chạy tối đa 150 - 200 job mỗi ngày trên một tài khoản MXH."
-                        android:textColor="@color/text_sub"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <!-- App Information -->
-                <LinearLayout
+                <!-- Bảo mật token -->
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="8dp"
                     android:background="@drawable/bg_card_premium"
-                    android:orientation="vertical"
-                    android:padding="14dp">
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <ImageView
+                        android:id="@+id/iv_shield"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:src="@drawable/ic_shield"
+                        android:contentDescription="Security" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:layout_marginStart="12dp"
+                        android:layout_toEndOf="@id/iv_shield"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Bảo mật token"
+                            android:textColor="@color/text_white"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Sử dụng Android Keystore"
+                            android:textColor="@color/text_sub"
+                            android:textSize="11sp" />
+                    </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Thông tin ứng dụng:"
-                        android:textColor="@color/text_white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="F4F AutoRunner v2.0 Standalone Android Native\nAccessibilityService Engine • Zero Root • Zero ADB"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:text="›"
                         android:textColor="@color/text_sub"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                        android:textSize="18sp" />
+                </RelativeLayout>
 
             </LinearLayout>
         </ScrollView>
 
     </FrameLayout>
 
-    <!-- BOTTOM NAVIGATION BAR -->
+    <!-- 4-TAB BOTTOM NAVIGATION BAR -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="58dp"
         android:layout_alignParentBottom="true"
-        android:background="@color/bg_card"
-        app:elevation="8dp"
+        android:background="#101222"
+        app:elevation="12dp"
         app:itemIconTint="@color/bottom_nav_colors"
         app:itemTextColor="@color/bottom_nav_colors"
         app:labelVisibilityMode="labeled"

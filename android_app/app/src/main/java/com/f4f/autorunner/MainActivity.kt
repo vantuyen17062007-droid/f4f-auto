@@ -15,6 +15,7 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.f4f.autorunner.api.F4FApiClient
@@ -25,17 +26,18 @@ import com.f4f.autorunner.controller.RunnerState
 import com.f4f.autorunner.service.F4FAccessibilityService
 import com.f4f.autorunner.service.FloatingWidgetService
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private val apiClient = F4FApiClient()
     private var accounts: List<SocialAccount> = emptyList()
-    private var baseCoins = 0
+    private var selectedPlatform = "tiktok"
     private var activeLogFilter: LogLevel? = null
+    private var startTimeMs: Long = 0
 
-    // Tabs
+    // Tab Views
     private lateinit var viewDashboard: View
     private lateinit var viewTasks: View
     private lateinit var viewLogs: View
@@ -43,46 +45,48 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNav: BottomNavigationView
 
     // Dashboard Views
-    private lateinit var dotAccessibility: TextView
-    private lateinit var tvAccessibility: TextView
-    private lateinit var dotOverlay: TextView
-    private lateinit var tvOverlay: TextView
-    private lateinit var boxLoginForm: View
-    private lateinit var boxProfileInfo: View
-    private lateinit var etF4fUser: EditText
-    private lateinit var etF4fPass: EditText
-    private lateinit var tvProfileName: TextView
-    private lateinit var tvProfileBalance: TextView
-    private lateinit var tvStatFollowed: TextView
-    private lateinit var tvStatLiked: TextView
-    private lateinit var tvStatCoins: TextView
-    private lateinit var tvStatSkipped: TextView
+    private lateinit var dotHeroStatus: TextView
+    private lateinit var tvHeroTitle: TextView
+    private lateinit var tvHeroSubtitle: TextView
+    private lateinit var tvTiktokConnStatus: TextView
+    private lateinit var tvInstagramConnStatus: TextView
+    private lateinit var tvDashStatCompleted: TextView
+    private lateinit var tvDashStatFailed: TextView
+    private lateinit var tvDashStatTime: TextView
+    private lateinit var tvDashStatTotal: TextView
     private lateinit var btnDashStart: Button
     private lateinit var boxRunningControls: View
     private lateinit var btnDashPause: Button
     private lateinit var btnDashStop: Button
 
     // Tasks Views
-    private lateinit var rgPlatform: RadioGroup
-    private lateinit var rbTiktok: RadioButton
-    private lateinit var rbInstagram: RadioButton
+    private lateinit var btnSegmentTiktok: View
+    private lateinit var btnSegmentInstagram: View
     private lateinit var spAccounts: Spinner
-    private lateinit var etMaxJobs: EditText
-    private lateinit var etDelay: EditText
-    private lateinit var cbAntiBan: CheckBox
-    private lateinit var cbFloatingWidget: CheckBox
+    private lateinit var spJobType: Spinner
+    private lateinit var tvStepperJobsValue: TextView
+    private lateinit var tvStepperDelayValue: TextView
+    private lateinit var boxAdvancedOptions: View
+    private lateinit var ivAdvancedArrow: TextView
 
     // Logs Views
     private lateinit var tvTerminalLogs: TextView
     private lateinit var scrollLogs: ScrollView
-    private lateinit var filterAll: TextView
-    private lateinit var filterSuccess: TextView
-    private lateinit var filterWarn: TextView
-    private lateinit var filterError: TextView
+    private lateinit var chipFilterAll: TextView
+    private lateinit var chipFilterInfo: TextView
+    private lateinit var chipFilterSuccess: TextView
+    private lateinit var chipFilterWarn: TextView
+    private lateinit var chipFilterError: TextView
 
     // Settings Views
-    private lateinit var tvSettingsUserStatus: TextView
+    private lateinit var tvSettingsUsername: TextView
+    private lateinit var tvSettingsUserid: TextView
     private lateinit var btnLogout: Button
+
+    // Current parameters
+    private var maxJobs = 100
+    private var delayMin = 8
+    private var delayMax = 18
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,16 +96,16 @@ class MainActivity : AppCompatActivity() {
         setupBottomNav()
         setupListeners()
         setupStateObservers()
-        loadSavedCredentials()
+        initTaskControls()
+        loadSavedSession()
     }
 
     override fun onResume() {
         super.onResume()
-        updatePermissionStatus()
+        checkPermissionsHealth()
     }
 
     private fun initViews() {
-        // Tab containers
         viewDashboard = findViewById(R.id.view_dashboard)
         viewTasks = findViewById(R.id.view_tasks)
         viewLogs = findViewById(R.id.view_logs)
@@ -109,45 +113,42 @@ class MainActivity : AppCompatActivity() {
         bottomNav = findViewById(R.id.bottom_navigation)
 
         // Dashboard
-        dotAccessibility = findViewById(R.id.dot_dash_accessibility)
-        tvAccessibility = findViewById(R.id.tv_dash_accessibility)
-        dotOverlay = findViewById(R.id.dot_dash_overlay)
-        tvOverlay = findViewById(R.id.tv_dash_overlay)
-        boxLoginForm = findViewById(R.id.box_login_form)
-        boxProfileInfo = findViewById(R.id.box_profile_info)
-        etF4fUser = findViewById(R.id.et_f4f_user)
-        etF4fPass = findViewById(R.id.et_f4f_pass)
-        tvProfileName = findViewById(R.id.tv_profile_name)
-        tvProfileBalance = findViewById(R.id.tv_profile_balance)
-        tvStatFollowed = findViewById(R.id.tv_stat_followed)
-        tvStatLiked = findViewById(R.id.tv_stat_liked)
-        tvStatCoins = findViewById(R.id.tv_stat_coins)
-        tvStatSkipped = findViewById(R.id.tv_stat_skipped)
+        dotHeroStatus = findViewById(R.id.dot_hero_status)
+        tvHeroTitle = findViewById(R.id.tv_hero_title)
+        tvHeroSubtitle = findViewById(R.id.tv_hero_subtitle)
+        tvTiktokConnStatus = findViewById(R.id.tv_tiktok_conn_status)
+        tvInstagramConnStatus = findViewById(R.id.tv_instagram_conn_status)
+        tvDashStatCompleted = findViewById(R.id.tv_dash_stat_completed)
+        tvDashStatFailed = findViewById(R.id.tv_dash_stat_failed)
+        tvDashStatTime = findViewById(R.id.tv_dash_stat_time)
+        tvDashStatTotal = findViewById(R.id.tv_dash_stat_total)
         btnDashStart = findViewById(R.id.btn_dash_start)
         boxRunningControls = findViewById(R.id.box_running_controls)
         btnDashPause = findViewById(R.id.btn_dash_pause)
         btnDashStop = findViewById(R.id.btn_dash_stop)
 
         // Tasks
-        rgPlatform = findViewById(R.id.rg_platform)
-        rbTiktok = findViewById(R.id.rb_tiktok)
-        rbInstagram = findViewById(R.id.rb_instagram)
+        btnSegmentTiktok = findViewById(R.id.btn_segment_tiktok)
+        btnSegmentInstagram = findViewById(R.id.btn_segment_instagram)
         spAccounts = findViewById(R.id.sp_accounts)
-        etMaxJobs = findViewById(R.id.et_max_jobs)
-        etDelay = findViewById(R.id.et_delay)
-        cbAntiBan = findViewById(R.id.cb_antiban)
-        cbFloatingWidget = findViewById(R.id.cb_floating_widget)
+        spJobType = findViewById(R.id.sp_job_type)
+        tvStepperJobsValue = findViewById(R.id.tv_stepper_jobs_value)
+        tvStepperDelayValue = findViewById(R.id.tv_stepper_delay_value)
+        boxAdvancedOptions = findViewById(R.id.box_advanced_options)
+        ivAdvancedArrow = findViewById(R.id.iv_advanced_arrow)
 
         // Logs
         tvTerminalLogs = findViewById(R.id.tv_terminal_logs)
         scrollLogs = findViewById(R.id.scroll_logs)
-        filterAll = findViewById(R.id.filter_all)
-        filterSuccess = findViewById(R.id.filter_success)
-        filterWarn = findViewById(R.id.filter_warn)
-        filterError = findViewById(R.id.filter_error)
+        chipFilterAll = findViewById(R.id.chip_filter_all)
+        chipFilterInfo = findViewById(R.id.chip_filter_info)
+        chipFilterSuccess = findViewById(R.id.chip_filter_success)
+        chipFilterWarn = findViewById(R.id.chip_filter_warn)
+        chipFilterError = findViewById(R.id.chip_filter_error)
 
         // Settings
-        tvSettingsUserStatus = findViewById(R.id.tv_settings_user_status)
+        tvSettingsUsername = findViewById(R.id.tv_settings_username)
+        tvSettingsUserid = findViewById(R.id.tv_settings_userid)
         btnLogout = findViewById(R.id.btn_logout)
     }
 
@@ -181,83 +182,84 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // Cấp quyền
-        findViewById<View>(R.id.btn_dash_accessibility).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        // Quick Settings button on Dashboard header
+        findViewById<View>(R.id.btn_dash_quick_settings).setOnClickListener {
+            bottomNav.selectedItemId = R.id.nav_settings
         }
 
-        findViewById<View>(R.id.btn_dash_overlay).setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                startActivity(
-                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-                )
+        // Back from Tasks to Dashboard
+        findViewById<View>(R.id.btn_tasks_back).setOnClickListener {
+            bottomNav.selectedItemId = R.id.nav_dashboard
+        }
+
+        // Help dialog
+        findViewById<View>(R.id.btn_tasks_help).setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Hướng dẫn Cấu hình")
+                .setMessage("• Số lượng Job: Giới hạn số nhiệm vụ tối đa trong một phiên.\n• Delay: Khoảng thời gian nghỉ ngẫu nhiên giữa các job để tránh checkpoint.\n• Tùy chọn nâng cao: Giữ app chạy nền mượt mà.")
+                .setPositiveButton("Đã hiểu", null)
+                .show()
+        }
+
+        // Platform segment toggles
+        btnSegmentTiktok.setOnClickListener {
+            setPlatformSelection("tiktok")
+        }
+
+        btnSegmentInstagram.setOnClickListener {
+            setPlatformSelection("instagram")
+        }
+
+        // Steppers: Jobs
+        findViewById<View>(R.id.btn_stepper_jobs_minus).setOnClickListener {
+            if (maxJobs > 25) {
+                maxJobs -= 25
+                tvStepperJobsValue.text = maxJobs.toString()
+            }
+        }
+
+        findViewById<View>(R.id.btn_stepper_jobs_plus).setOnClickListener {
+            if (maxJobs < 1000) {
+                maxJobs += 25
+                tvStepperJobsValue.text = maxJobs.toString()
+            }
+        }
+
+        // Steppers: Delay
+        findViewById<View>(R.id.btn_stepper_delay_minus).setOnClickListener {
+            if (delayMin > 4) {
+                delayMin -= 2
+                delayMax -= 2
+                tvStepperDelayValue.text = "$delayMin - $delayMax"
+            }
+        }
+
+        findViewById<View>(R.id.btn_stepper_delay_plus).setOnClickListener {
+            if (delayMax < 40) {
+                delayMin += 2
+                delayMax += 2
+                tvStepperDelayValue.text = "$delayMin - $delayMax"
+            }
+        }
+
+        // Advanced Options accordion toggle
+        findViewById<View>(R.id.header_advanced_options).setOnClickListener {
+            if (boxAdvancedOptions.visibility == View.VISIBLE) {
+                boxAdvancedOptions.visibility = View.GONE
+                ivAdvancedArrow.text = "▼"
             } else {
-                Toast.makeText(this, "Quyền bong bóng nổi đã được cấp!", Toast.LENGTH_SHORT).show()
+                boxAdvancedOptions.visibility = View.VISIBLE
+                ivAdvancedArrow.text = "▲"
             }
         }
 
-        // Đăng nhập F4F
-        findViewById<Button>(R.id.btn_login).setOnClickListener {
-            val user = etF4fUser.text.toString().trim()
-            val pass = etF4fPass.text.toString().trim()
-
-            if (user.isEmpty() || pass.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập Username và Mật khẩu F4F", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            RunnerController.addLog(LogLevel.INFO, "Đang kết nối máy chủ Follow4Follow...")
-            lifecycleScope.launch {
-                try {
-                    val loginData = apiClient.login(user, pass)
-                    saveCredentials(user, pass)
-
-                    baseCoins = loginData.user.getNumericBalance()
-                    updateUiForLoggedIn(loginData.user.username ?: user, loginData.user.getDisplayBalance())
-
-                    RunnerController.addLog(
-                        LogLevel.SUCCESS,
-                        "Đăng nhập thành công: @${loginData.user.username} (Số dư: ${loginData.user.getDisplayBalance()})"
-                    )
-
-                    loadAccounts()
-                } catch (e: Exception) {
-                    RunnerController.addLog(LogLevel.ERROR, "Đăng nhập thất bại: ${e.message}")
-                    Toast.makeText(this@MainActivity, "Lỗi đăng nhập: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
+        // Save settings button
+        findViewById<View>(R.id.btn_save_settings).setOnClickListener {
+            Toast.makeText(this, "✓ Đã lưu cấu hình chiến dịch thành công!", Toast.LENGTH_SHORT).show()
+            bottomNav.selectedItemId = R.id.nav_dashboard
         }
 
-        // Đăng xuất
-        btnLogout.setOnClickListener {
-            clearSavedCredentials()
-            apiClient.token = null
-            apiClient.user = null
-            boxLoginForm.visibility = View.VISIBLE
-            boxProfileInfo.visibility = View.GONE
-            tvSettingsUserStatus.text = "Chưa đăng nhập tài khoản Follow4Follow"
-            spAccounts.adapter = null
-            accounts = emptyList()
-            RunnerController.stop()
-            Toast.makeText(this, "Đã đăng xuất khỏi F4F", Toast.LENGTH_SHORT).show()
-        }
-
-        // Chuyển nền tảng TikTok / Instagram
-        rgPlatform.setOnCheckedChangeListener { _, checkedId ->
-            if (checkedId == R.id.rb_tiktok) {
-                rbTiktok.setBackgroundResource(R.drawable.bg_input_field)
-                rbInstagram.background = null
-            } else {
-                rbInstagram.setBackgroundResource(R.drawable.bg_input_field)
-                rbTiktok.background = null
-            }
-
-            if (apiClient.token != null) {
-                lifecycleScope.launch { loadAccounts() }
-            }
-        }
-
-        // Các nút điều khiển chính
+        // Action controllers
         btnDashStart.setOnClickListener {
             startRunner()
         }
@@ -275,149 +277,135 @@ class MainActivity : AppCompatActivity() {
             stopService(Intent(this, FloatingWidgetService::class.java))
         }
 
-        // Bộ lọc logs
-        filterAll.setOnClickListener { setLogFilter(null, it) }
-        filterSuccess.setOnClickListener { setLogFilter(LogLevel.SUCCESS, it) }
-        filterWarn.setOnClickListener { setLogFilter(LogLevel.WARN, it) }
-        filterError.setOnClickListener { setLogFilter(LogLevel.ERROR, it) }
+        // Log Filter Chips
+        chipFilterAll.setOnClickListener { setChipFilter(null, it) }
+        chipFilterInfo.setOnClickListener { setChipFilter(LogLevel.INFO, it) }
+        chipFilterSuccess.setOnClickListener { setChipFilter(LogLevel.SUCCESS, it) }
+        chipFilterWarn.setOnClickListener { setChipFilter(LogLevel.WARN, it) }
+        chipFilterError.setOnClickListener { setChipFilter(LogLevel.ERROR, it) }
 
-        // Sao chép logs
+        // Copy logs
         findViewById<View>(R.id.btn_copy_log).setOnClickListener {
             val fullLogs = RunnerController.logs.value.joinToString("\n") {
                 "[${it.timestamp}] [${it.level}] ${it.message}"
             }
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("F4F Logs", fullLogs))
-            Toast.makeText(this, "Đã sao chép toàn bộ nhật ký vào bộ nhớ tạm", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Đã sao chép nhật ký vào bộ nhớ tạm", Toast.LENGTH_SHORT).show()
         }
 
-        // Xóa logs
-        findViewById<View>(R.id.btn_clear_log).setOnClickListener {
+        // Clear logs
+        val clearAction = View.OnClickListener {
             RunnerController.clearLogs()
+            Toast.makeText(this, "Đã xóa sạch nhật ký", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<View>(R.id.btn_clear_log).setOnClickListener(clearAction)
+        findViewById<View>(R.id.btn_clear_log_top).setOnClickListener(clearAction)
+
+        // Logout
+        btnLogout.setOnClickListener {
+            showLoginOrLogoutDialog()
         }
     }
 
+    private fun setPlatformSelection(plat: String) {
+        selectedPlatform = plat
+        if (plat == "tiktok") {
+            btnSegmentTiktok.setBackgroundResource(R.drawable.bg_pill_active)
+            (btnSegmentTiktok.findViewById<TextView>(android.R.id.text1) ?: btnSegmentTiktok).findViewWithTag<TextView>("tag_txt")
+            btnSegmentInstagram.background = null
+        } else {
+            btnSegmentInstagram.setBackgroundResource(R.drawable.bg_pill_active)
+            btnSegmentTiktok.background = null
+        }
+        lifecycleScope.launch {
+            loadAccounts()
+        }
+    }
+
+    private fun initTaskControls() {
+        val jobTypes = listOf("Follow", "Like", "Tất cả (Follow & Like)")
+        val jobAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, jobTypes)
+        spJobType.adapter = jobAdapter
+    }
+
     private fun setupStateObservers() {
-        // 1. Quan sát trạng thái Running / Paused / Stopped
+        // 1. Runner state
         lifecycleScope.launch {
             RunnerController.state.collectLatest { state ->
                 when (state) {
                     RunnerState.IDLE, RunnerState.STOPPED -> {
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                        tvHeroTitle.text = "Đang sẵn sàng"
+                        tvHeroSubtitle.text = "Nhấn START để bắt đầu auto"
                         btnDashStart.visibility = View.VISIBLE
                         boxRunningControls.visibility = View.GONE
-                        btnDashStart.text = "🚀 BẮT ĐẦU CHẠY AUTO"
-                        btnDashStart.setBackgroundResource(R.drawable.bg_btn_primary)
-                        btnDashStart.setTextColor(Color.parseColor("#05080E"))
                     }
                     RunnerState.RUNNING -> {
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                        tvHeroTitle.text = "Đang chạy chiến dịch"
+                        tvHeroSubtitle.text = "Tự động tương tác và nhận xu..."
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
-                        btnDashPause.text = "⏸ Tạm dừng"
-                        btnDashPause.setTextColor(Color.parseColor("#F59E0B"))
+                        btnDashPause.text = "⏸  TẠM DỪNG"
+                        btnDashPause.setTextColor(Color.WHITE)
                     }
                     RunnerState.PAUSED -> {
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F59E0B"))
+                        tvHeroTitle.text = "Đang tạm dừng"
+                        tvHeroSubtitle.text = "Nhấn TIẾP TỤC để chạy lại"
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
-                        btnDashPause.text = "▶ Tiếp tục"
+                        btnDashPause.text = "▶  TIẾP TỤC"
                         btnDashPause.setTextColor(Color.parseColor("#10B981"))
                     }
                 }
             }
         }
 
-        // 2. Quan sát thống kê Realtime
+        // 2. Runner stats
         lifecycleScope.launch {
             RunnerController.stats.collectLatest { stats ->
-                tvStatFollowed.text = stats.followed.toString()
-                tvStatLiked.text = stats.liked.toString()
-                tvStatCoins.text = "+${stats.coinsEarned}"
-                tvStatSkipped.text = (stats.skipped + stats.errors).toString()
+                val completed = stats.followed + stats.liked
+                val failed = stats.skipped + stats.errors
+                val total = completed + failed
 
-                val currentCoins = baseCoins + stats.coinsEarned
-                tvProfileBalance.text = "🪙 $currentCoins xu (+${stats.coinsEarned})"
+                tvDashStatCompleted.text = completed.toString()
+                tvDashStatFailed.text = failed.toString()
+                tvDashStatTotal.text = total.toString()
             }
         }
 
-        // 3. Quan sát nhật ký (Logs)
+        // 3. Runner logs
         lifecycleScope.launch {
             RunnerController.logs.collectLatest { logs ->
                 renderLogs(logs)
             }
         }
-    }
 
-    private fun startRunner() {
-        if (!F4FAccessibilityService.isRunning()) {
-            Toast.makeText(this, "Vui lòng bật quyền Trợ Năng trước!", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            return
-        }
-
-        if (apiClient.token == null) {
-            Toast.makeText(this, "Vui lòng đăng nhập tài khoản Follow4Follow trước!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (accounts.isEmpty()) {
-            Toast.makeText(this, "Chưa có tài khoản MXH nào được chọn!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val platform = if (rbInstagram.isChecked) "instagram" else "tiktok"
-        val selectedIdx = spAccounts.selectedItemPosition.coerceAtLeast(0)
-        val selectedAccount = accounts.getOrNull(selectedIdx) ?: accounts[0]
-
-        val maxJobs = etMaxJobs.text.toString().trim().toIntOrNull() ?: 50
-        val accName = selectedAccount.getDisplayName()
-
-        // Phân tích delay an toàn
-        val delayText = etDelay.text.toString().trim()
-        var delayMin = 8
-        var delayMax = 18
-        if (delayText.isNotEmpty()) {
-            if (delayText.contains("-")) {
-                val parts = delayText.split("-")
-                delayMin = parts[0].trim().toIntOrNull() ?: 8
-                delayMax = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: (delayMin + 5)
-            } else {
-                delayMin = delayText.toIntOrNull() ?: 8
-                delayMax = delayMin + 4
+        // 4. Timer updater
+        lifecycleScope.launch {
+            while (isActive) {
+                if (RunnerController.isRunning && startTimeMs > 0) {
+                    val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
+                    val hours = elapsedSec / 3600
+                    val mins = (elapsedSec % 3600) / 60
+                    tvDashStatTime.text = "${hours}h ${mins}m"
+                }
+                delay(1000)
             }
         }
-        if (delayMin < 3) delayMin = 3
-        if (delayMax < delayMin) delayMax = delayMin + 3
-
-        // Khởi động bong bóng nổi nếu được bật
-        if (cbFloatingWidget.isChecked) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
-                startService(Intent(this, FloatingWidgetService::class.java))
-            }
-        }
-
-        val antiBanScrolls = if (cbAntiBan.isChecked) 2 else 0
-
-        RunnerController.start(
-            context = this,
-            apiClient = apiClient,
-            platform = platform,
-            accountId = selectedAccount.getId(),
-            accountName = accName,
-            maxJobs = maxJobs,
-            delayMin = delayMin,
-            delayMax = delayMax,
-            antiBanScrollTimes = antiBanScrolls
-        )
     }
 
-    private fun setLogFilter(level: LogLevel?, view: View) {
+    private fun setChipFilter(level: LogLevel?, view: View) {
         activeLogFilter = level
-        val filters = listOf(filterAll, filterSuccess, filterWarn, filterError)
-        for (f in filters) {
-            f.setBackgroundColor(Color.TRANSPARENT)
-            f.setTextColor(Color.parseColor("#94A3B8"))
+        val chips = listOf(chipFilterAll, chipFilterInfo, chipFilterSuccess, chipFilterWarn, chipFilterError)
+        for (c in chips) {
+            c.setBackgroundResource(R.drawable.bg_pill_inactive)
+            c.setTextColor(Color.parseColor("#94A3B8"))
         }
-        (view as TextView).setBackgroundColor(Color.parseColor("#2B3B56"))
-        view.setTextColor(Color.WHITE)
+        view.setBackgroundResource(R.drawable.bg_pill_active)
+        (view as TextView).setTextColor(Color.WHITE)
         renderLogs(RunnerController.logs.value)
     }
 
@@ -439,7 +427,7 @@ class MainActivity : AppCompatActivity() {
                 LogLevel.SUCCESS -> Color.parseColor("#10B981")
                 LogLevel.WARN -> Color.parseColor("#F59E0B")
                 LogLevel.ERROR -> Color.parseColor("#EF4444")
-                LogLevel.INFO -> Color.parseColor("#00E5FF")
+                LogLevel.INFO -> Color.parseColor("#38BDF8")
             }
             ssb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
@@ -448,66 +436,123 @@ class MainActivity : AppCompatActivity() {
         scrollLogs.post { scrollLogs.fullScroll(View.FOCUS_DOWN) }
     }
 
-    private fun updatePermissionStatus() {
-        val hasAccessibility = F4FAccessibilityService.isRunning()
-        dotAccessibility.backgroundTintList = ColorStateList.valueOf(
-            if (hasAccessibility) Color.parseColor("#10B981") else Color.parseColor("#EF4444")
-        )
-        tvAccessibility.text = if (hasAccessibility) "Trợ năng: BẬT" else "Trợ năng: TẮT"
-
+    private fun checkPermissionsHealth() {
+        val hasAcc = F4FAccessibilityService.isRunning()
         val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
-        dotOverlay.backgroundTintList = ColorStateList.valueOf(
-            if (hasOverlay) Color.parseColor("#10B981") else Color.parseColor("#EF4444")
-        )
-        tvOverlay.text = if (hasOverlay) "Bong bóng: ĐÃ CẤP" else "Bong bóng: CHƯA"
-    }
 
-    private suspend fun loadAccounts() {
-        val platform = if (rbInstagram.isChecked) "instagram" else "tiktok"
-        try {
-            accounts = apiClient.getAccounts(platform)
-            val names = if (accounts.isEmpty()) {
-                listOf("(Chưa có nick $platform nào trên F4F)")
-            } else {
-                accounts.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
-            }
-
-            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
-            spAccounts.adapter = adapter
-            RunnerController.addLog(LogLevel.INFO, "Đã tải ${accounts.size} tài khoản [$platform] từ F4F.")
-        } catch (e: Exception) {
-            RunnerController.addLog(LogLevel.ERROR, "Lỗi tải tài khoản: ${e.message}")
+        if (!hasAcc) {
+            tvHeroSubtitle.text = "Cần bật quyền Trợ Năng để tự động click"
         }
     }
 
-    private fun updateUiForLoggedIn(username: String, balance: String) {
-        boxLoginForm.visibility = View.GONE
-        boxProfileInfo.visibility = View.VISIBLE
-        tvProfileName.text = "@$username"
-        tvProfileBalance.text = "🪙 $balance"
-        tvSettingsUserStatus.text = "Đang đăng nhập tài khoản F4F: @$username"
+    private fun startRunner() {
+        if (!F4FAccessibilityService.isRunning()) {
+            Toast.makeText(this, "Vui lòng cấp quyền Trợ Năng trước!", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            return
+        }
+
+        if (apiClient.token == null) {
+            showLoginOrLogoutDialog()
+            return
+        }
+
+        if (accounts.isEmpty()) {
+            Toast.makeText(this, "Chưa chọn tài khoản MXH nào!", Toast.LENGTH_SHORT).show()
+            bottomNav.selectedItemId = R.id.nav_tasks
+            return
+        }
+
+        val selectedIdx = spAccounts.selectedItemPosition.coerceAtLeast(0)
+        val selectedAccount = accounts.getOrNull(selectedIdx) ?: accounts[0]
+
+        // Start floating widget if overlay granted
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+            startService(Intent(this, FloatingWidgetService::class.java))
+        }
+
+        startTimeMs = System.currentTimeMillis()
+
+        RunnerController.start(
+            context = this,
+            apiClient = apiClient,
+            platform = selectedPlatform,
+            accountId = selectedAccount.getId(),
+            accountName = selectedAccount.getDisplayName(),
+            maxJobs = maxJobs,
+            delayMin = delayMin,
+            delayMax = delayMax
+        )
     }
 
-    private fun loadSavedCredentials() {
+    private fun showLoginOrLogoutDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_f4f_login, null)
+        val etUser = dialogView.findViewById<EditText>(R.id.dialog_et_user)
+        val etPass = dialogView.findViewById<EditText>(R.id.dialog_et_pass)
+
+        val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
+        etUser.setText(prefs.getString("f4f_user", ""))
+
+        AlertDialog.Builder(this)
+            .setTitle("Đăng nhập Follow4Follow")
+            .setView(dialogView)
+            .setPositiveButton("Đăng nhập") { _, _ ->
+                val u = etUser.text.toString().trim()
+                val p = etPass.text.toString().trim()
+                if (u.isNotEmpty() && p.isNotEmpty()) {
+                    performLogin(u, p)
+                }
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun performLogin(user: String, pass: String) {
+        RunnerController.addLog(LogLevel.INFO, "Đang kết nối F4F...")
+        lifecycleScope.launch {
+            try {
+                val data = apiClient.login(user, pass)
+                getSharedPreferences("f4f_config", Context.MODE_PRIVATE).edit()
+                    .putString("f4f_user", user)
+                    .putString("f4f_pass", pass)
+                    .apply()
+
+                tvSettingsUsername.text = data.user.username ?: user
+                tvSettingsUserid.text = "ID: ${data.user.id ?: "F4F"}"
+                tvTiktokConnStatus.text = "Đã kết nối"
+                tvInstagramConnStatus.text = "Đã kết nối"
+
+                RunnerController.addLog(LogLevel.SUCCESS, "Đăng nhập thành công: @${data.user.username}")
+                loadAccounts()
+            } catch (e: Exception) {
+                RunnerController.addLog(LogLevel.ERROR, "Đăng nhập thất bại: ${e.message}")
+                Toast.makeText(this@MainActivity, "Lỗi đăng nhập: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private suspend fun loadAccounts() {
+        try {
+            accounts = apiClient.getAccounts(selectedPlatform)
+            val names = if (accounts.isEmpty()) {
+                listOf("(Chưa có nick $selectedPlatform nào)")
+            } else {
+                accounts.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
+            }
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
+            spAccounts.adapter = adapter
+            RunnerController.addLog(LogLevel.INFO, "Đã tải ${accounts.size} nick [$selectedPlatform] từ F4F.")
+        } catch (e: Exception) {
+            RunnerController.addLog(LogLevel.ERROR, "Lỗi tải nick: ${e.message}")
+        }
+    }
+
+    private fun loadSavedSession() {
         val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
         val user = prefs.getString("f4f_user", "") ?: ""
         val pass = prefs.getString("f4f_pass", "") ?: ""
-        if (user.isNotEmpty()) etF4fUser.setText(user)
-        if (pass.isNotEmpty()) etF4fPass.setText(pass)
-    }
-
-    private fun saveCredentials(user: String, pass: String) {
-        val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("f4f_user", user)
-            .putString("f4f_pass", pass)
-            .apply()
-    }
-
-    private fun clearSavedCredentials() {
-        val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
-        prefs.edit().clear().apply()
-        etF4fUser.setText("")
-        etF4fPass.setText("")
+        if (user.isNotEmpty() && pass.isNotEmpty()) {
+            performLogin(user, pass)
+        }
     }
 }

@@ -1,36 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Backgrounds -->
-    <color name="bg_dark">#0A0E17</color>
-    <color name="bg_card">#141B29</color>
-    <color name="bg_card_secondary">#1B2436</color>
-    <color name="card_stroke">#233047</color>
-    <color name="input_bg">#182233</color>
-    <color name="input_stroke">#2B3B56</color>
-    <color name="terminal_bg">#05080E</color>
+    <!-- Backgrounds (Deep Dark Purple & Navy) -->
+    <color name="bg_dark">#0B0C16</color>
+    <color name="bg_card">#131424</color>
+    <color name="bg_card_secondary">#1A1C30</color>
+    <color name="bg_card_hero">#141936</color>
+    <color name="card_stroke">#222442</color>
+    <color name="input_bg">#16182E</color>
+    <color name="input_stroke">#282A4A</color>
+    <color name="terminal_bg">#090A12</color>
 
-    <!-- Compatibility Aliases -->
-    <color name="primary">#00E676</color>
-    <color name="primary_dark">#00E5FF</color>
-    <color name="background_dark">#0A0E17</color>
-    <color name="card_dark">#141B29</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#94A3B8</color>
-
-    <!-- Brand & Accent Gradients -->
-    <color name="primary_neon">#00E676</color>
+    <!-- Brand Accent & Gradients -->
+    <color name="primary_purple">#7C3AED</color>
+    <color name="primary_indigo">#6366F1</color>
+    <color name="accent_blue">#3B82F6</color>
+    <color name="primary_neon">#10B981</color>
     <color name="cyan_neon">#00E5FF</color>
     <color name="pink_tiktok">#FE2C55</color>
     <color name="blue_tiktok">#25F4EE</color>
-    <color name="purple_insta">#833AB4</color>
-    <color name="orange_insta">#FD1D1D</color>
     <color name="gold_coin">#FFD700</color>
 
     <!-- State & Text -->
     <color name="text_white">#FFFFFF</color>
     <color name="text_sub">#94A3B8</color>
     <color name="text_muted">#64748B</color>
+    <color name="text_purple_light">#C4B5FD</color>
     <color name="status_green">#10B981</color>
     <color name="status_red">#EF4444</color>
     <color name="status_amber">#F59E0B</color>
+    <color name="status_blue">#3B82F6</color>
+
+    <!-- Compatibility Aliases -->
+    <color name="primary">#7C3AED</color>
+    <color name="primary_dark">#6366F1</color>
+    <color name="background_dark">#0B0C16</color>
+    <color name="card_dark">#131424</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
 </resources>

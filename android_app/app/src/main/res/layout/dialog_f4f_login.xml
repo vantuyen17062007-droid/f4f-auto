@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Nhập tài khoản Follow4Follow để đồng bộ danh sách nick và nhận coin tự động:"
+        android:textColor="#94A3B8"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/dialog_et_user"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input_field"
+        android:hint="Tên đăng nhập hoặc Email"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#64748B"
+        android:textSize="14sp" />
+
+    <EditText
+        android:id="@+id/dialog_et_pass"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_input_field"
+        android:hint="Mật khẩu"
+        android:inputType="textPassword"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#64748B"
+        android:textSize="14sp" />
+
+</LinearLayout>
