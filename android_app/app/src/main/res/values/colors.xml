@@ -9,6 +9,14 @@
     <color name="input_stroke">#2B3B56</color>
     <color name="terminal_bg">#05080E</color>
 
+    <!-- Compatibility Aliases -->
+    <color name="primary">#00E676</color>
+    <color name="primary_dark">#00E5FF</color>
+    <color name="background_dark">#0A0E17</color>
+    <color name="card_dark">#141B29</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
+
     <!-- Brand & Accent Gradients -->
     <color name="primary_neon">#00E676</color>
     <color name="cyan_neon">#00E5FF</color>
