@@ -103,6 +103,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnAdbDisconnect: Button
     private lateinit var tvAdbGuide: TextView
 
+    // Overlay Views
+    private lateinit var cardOverlayPermission: View
+    private lateinit var tvOverlayStatusDesc: TextView
+    private lateinit var tvOverlayBadge: TextView
+    private lateinit var swOverlayPermission: androidx.appcompat.widget.SwitchCompat
+    private lateinit var swTasksFloatingWidget: androidx.appcompat.widget.SwitchCompat
+
     // Current parameters
     private var maxJobs = 100
     private var delayMin = 8
@@ -125,6 +132,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateAdbUiState()
+        updateOverlayPermissionUi()
         checkPlatformAccountsHealth()
     }
 
@@ -192,6 +200,13 @@ class MainActivity : AppCompatActivity() {
         btnAdbConnect = findViewById(R.id.btn_adb_connect)
         btnAdbDisconnect = findViewById(R.id.btn_adb_disconnect)
         tvAdbGuide = findViewById(R.id.tv_adb_guide)
+
+        // Overlay Views
+        cardOverlayPermission = findViewById(R.id.card_overlay_permission)
+        tvOverlayStatusDesc = findViewById(R.id.tv_overlay_status_desc)
+        tvOverlayBadge = findViewById(R.id.tv_overlay_badge)
+        swOverlayPermission = findViewById(R.id.sw_overlay_permission)
+        swTasksFloatingWidget = findViewById(R.id.sw_tasks_floating_widget)
     }
 
     private fun setupBottomNav() {
@@ -210,6 +225,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_tasks -> {
                     viewTasks.visibility = View.VISIBLE
+                    updateOverlayPermissionUi()
                     true
                 }
                 R.id.nav_logs -> {
@@ -219,6 +235,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_settings -> {
                     viewSettings.visibility = View.VISIBLE
                     updateAdbUiState()
+                    updateOverlayPermissionUi()
                     true
                 }
                 else -> false
@@ -377,6 +394,64 @@ class MainActivity : AppCompatActivity() {
             updateAdbUiState()
             Toast.makeText(this, "Đã ngắt kết nối ADB", Toast.LENGTH_SHORT).show()
             RunnerController.addLog(LogLevel.WARN, "Đã ngắt kết nối ADB.")
+        }
+
+        // Overlay Listeners
+        cardOverlayPermission.setOnClickListener {
+            requestOverlayPermission()
+        }
+
+        swOverlayPermission.setOnClickListener {
+            requestOverlayPermission()
+        }
+
+        swTasksFloatingWidget.setOnClickListener {
+            if (swTasksFloatingWidget.isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                swTasksFloatingWidget.isChecked = false
+                requestOverlayPermission()
+            }
+        }
+    }
+
+    private fun updateOverlayPermissionUi() {
+        val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        swOverlayPermission.isChecked = hasOverlay
+        swTasksFloatingWidget.isChecked = hasOverlay
+
+        if (hasOverlay) {
+            tvOverlayBadge.text = "ĐÃ BẬT"
+            tvOverlayBadge.setTextColor(Color.parseColor("#10B981"))
+            tvOverlayBadge.setBackgroundResource(R.drawable.bg_pill_active)
+            tvOverlayStatusDesc.text = "Cửa sổ nổi đã sẵn sàng hoạt động khi bắt đầu auto"
+        } else {
+            tvOverlayBadge.text = "CHƯA BẬT"
+            tvOverlayBadge.setTextColor(Color.parseColor("#EF4444"))
+            tvOverlayBadge.setBackgroundResource(R.drawable.bg_pill_inactive)
+            tvOverlayStatusDesc.text = "Chạm để cấp quyền hiển thị cửa sổ điều khiển nổi"
+        }
+    }
+
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Vui lòng tìm 'F4F AutoRunner' và gạt Bật cho phép hiển thị", Toast.LENGTH_LONG).show()
+                try {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                } catch (_: Exception) {
+                    try {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Không thể mở cài đặt quyền: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Quyền hiển thị trên ứng dụng khác đã được cấp!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -619,8 +694,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startRunner() {
-        if (!AdbManager.isConnected) {
-            Toast.makeText(this, "Chưa kết nối ADB! Vui lòng vào Cài đặt để kết nối ADB trước.", Toast.LENGTH_LONG).show()
+        val hasAdb = AdbManager.isConnected
+        val hasAccessibility = com.f4f.autorunner.service.F4FAccessibilityService.isRunning()
+
+        if (!hasAdb && !hasAccessibility) {
+            Toast.makeText(this, "Vui lòng kết nối ADB hoặc bật Trợ Năng F4F trong Cài đặt để bắt đầu!", Toast.LENGTH_LONG).show()
             bottomNav.selectedItemId = R.id.nav_settings
             return
         }
@@ -639,9 +717,12 @@ class MainActivity : AppCompatActivity() {
         val selectedIdx = spAccounts.selectedItemPosition.coerceAtLeast(0)
         val selectedAccount = accounts.getOrNull(selectedIdx) ?: accounts[0]
 
-        // Start floating widget if overlay granted
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+        // Start floating widget if overlay granted and switch is enabled
+        val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        if (hasOverlay && swTasksFloatingWidget.isChecked) {
             startService(Intent(this, FloatingWidgetService::class.java))
+        } else if (!hasOverlay && swTasksFloatingWidget.isChecked) {
+            Toast.makeText(this, "Mẹo: Bạn có thể bật 'Hiển thị trên ứng dụng khác' trong Cài đặt để hiện cửa sổ nổi!", Toast.LENGTH_LONG).show()
         }
 
         startTimeMs = System.currentTimeMillis()

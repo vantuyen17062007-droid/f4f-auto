@@ -131,18 +131,25 @@ object UiXmlParser {
             }
         }
 
-        // 2. Kiểm tra Anchor "Nhắn tin" trên TikTok Profile
+        // 2. Tìm Anchor "Nhắn tin" trên TikTok Profile
         var messageAnchorY: Int? = null
         for (node in nodes) {
             val label = (node.text.ifEmpty { node.desc }).lowercase()
-            if (MESSAGE_LABELS.contains(label)) {
+            if (MESSAGE_LABELS.contains(label) && node.height >= 50) {
                 messageAnchorY = node.centerY
                 break
             }
         }
 
+        // 3. Lọc các nút ứng viên (Bỏ qua các nhãn thống kê như 'Đã follow: 2 người', 'Follower: 96M')
         val candidates = mutableListOf<Pair<String, UiNode>>()
         for (node in nodes) {
+            // Nút bấm thực tế trên TikTok luôn có chiều cao >= 50px và chiều rộng >= 60px
+            if (node.height < 50 || node.width < 60) continue
+
+            // Bỏ qua các textview nhãn số liệu thống kê follower/following
+            if (node.resId.endsWith(":id/t9q") || node.resId.endsWith(":id/t9r")) continue
+
             val label = (node.text.ifEmpty { node.desc }).lowercase()
             if (label.isEmpty()) continue
 
@@ -164,7 +171,7 @@ object UiXmlParser {
             }
         }
 
-        // Nếu không có anchor, lấy ứng viên đầu tiên hợp lệ
+        // Nếu không có anchor (hoặc profile không cho nhắn tin), lấy ứng viên đầu tiên hợp lệ
         if (candidates.isNotEmpty()) {
             val (state, node) = candidates.first()
             return Pair(state, Point(node.centerX, node.centerY))
