@@ -153,7 +153,8 @@ object AdbManager {
     }
 
     suspend fun doubleTap(x: Int, y: Int, intervalMs: Long = 120) {
-        shell("input tap $x $y; sleep 0.12; input tap $x $y")
+        val sec = String.format(Locale.US, "%.2f", intervalMs / 1000.0)
+        shell("input tap $x $y; sleep $sec; input tap $x $y")
     }
 
     suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, durationMs: Int = 300) {

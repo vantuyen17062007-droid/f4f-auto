@@ -323,6 +323,7 @@ class AutoJobEngine(
             val url = when {
                 target.startsWith("http://") || target.startsWith("https://") -> target
                 platform == "instagram" -> "https://www.instagram.com/${target.removePrefix("@")}"
+                typeJob == "like" && target.all { it.isDigit() } -> "https://www.tiktok.com/@video/video/$target"
                 else -> "https://www.tiktok.com/@${target.removePrefix("@")}"
             }
 
