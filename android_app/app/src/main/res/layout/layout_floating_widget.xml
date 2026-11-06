@@ -214,6 +214,18 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <!-- Coins earned -->
+            <TextView
+                android:id="@+id/tv_floating_coins"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:text="🪙 +0 xu"
+                android:textColor="#F59E0B"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
             <!-- Failed count -->
             <LinearLayout
                 android:layout_width="wrap_content"

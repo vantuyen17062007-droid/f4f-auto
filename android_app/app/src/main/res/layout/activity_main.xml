@@ -126,6 +126,32 @@
                             android:text="Nhấn START để bắt đầu auto"
                             android:textColor="@color/text_sub"
                             android:textSize="12sp" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tv_dash_balance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🪙 Số dư F4F: 0 xu"
+                                android:textColor="#FBBF24"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_dash_adb_badge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="10dp"
+                                android:text="⚡ ADB: Chưa kết nối"
+                                android:textColor="#94A3B8"
+                                android:textSize="11sp" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <ImageView
@@ -188,6 +214,7 @@
                         </LinearLayout>
 
                         <ImageView
+                            android:id="@+id/iv_tiktok_conn_icon"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_check_circle"
@@ -231,15 +258,16 @@
                                 android:id="@+id/tv_instagram_conn_status"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Đã kết nối"
+                                android:text="Chưa kết nối"
                                 android:textColor="@color/text_sub"
                                 android:textSize="11sp" />
                         </LinearLayout>
 
                         <ImageView
+                            android:id="@+id/iv_instagram_conn_icon"
                             android:layout_width="16dp"
                             android:layout_height="16dp"
-                            android:src="@drawable/ic_check_circle"
+                            android:src="@drawable/ic_close_circle"
                             android:contentDescription="Connected" />
                     </LinearLayout>
                 </LinearLayout>
@@ -429,6 +457,48 @@
                                 android:layout_marginTop="6dp"
                                 android:text="0"
                                 android:textColor="@color/text_white"
+                                android:textSize="22sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Row 3: Xu kiếm được -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_card_premium"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🪙"
+                            android:textSize="22sp" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Xu kiếm được (Phiên chạy này)"
+                                android:textColor="@color/text_sub"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tv_dash_stat_coins"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="+0 xu"
+                                android:textColor="#F59E0B"
                                 android:textSize="22sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
@@ -1231,6 +1301,16 @@
                             android:text="ID: 12345678"
                             android:textColor="@color/text_sub"
                             android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tv_settings_balance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:text="🪙 Số dư: 0 xu"
+                            android:textColor="#FBBF24"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
 
                     <Button
@@ -1246,6 +1326,202 @@
                         android:textColor="@color/text_white"
                         android:textSize="12sp" />
                 </RelativeLayout>
+
+                <!-- Section: Kết nối ADB (Thay thế Trợ Năng) -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Cấu hình kết nối ADB (Tự động hóa)"
+                    android:textColor="@color/text_sub"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_card_premium"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <!-- 2 Mục trạng thái: Chưa kết nối & Từng kết nối -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <!-- Mục 1: Chưa kết nối -->
+                        <LinearLayout
+                            android:id="@+id/box_adb_status_disconnected"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_pill_active"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="10dp">
+
+                            <TextView
+                                android:id="@+id/tv_adb_status_disconnected_title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🔴 Chưa kết nối"
+                                android:textColor="@color/text_white"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_adb_status_disconnected_sub"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Chưa kết nối ADB"
+                                android:textColor="@color/text_sub"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <!-- Mục 2: Từng kết nối -->
+                        <LinearLayout
+                            android:id="@+id/box_adb_status_connected"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_card_secondary"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="10dp">
+
+                            <TextView
+                                android:id="@+id/tv_adb_status_connected_title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🟢 Từng kết nối"
+                                android:textColor="@color/text_sub"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_adb_status_connected_sub"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Chưa có lịch sử"
+                                android:textColor="@color/text_sub"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Input Host & Port -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="2"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Host / IP"
+                                android:textColor="@color/text_sub"
+                                android:textSize="11sp" />
+
+                            <EditText
+                                android:id="@+id/et_adb_host"
+                                android:layout_width="match_parent"
+                                android:layout_height="42dp"
+                                android:layout_marginTop="4dp"
+                                android:background="@drawable/bg_input_field"
+                                android:hint="127.0.0.1"
+                                android:inputType="text"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:text="127.0.0.1"
+                                android:textColor="@color/text_white"
+                                android:textColorHint="@color/text_sub"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Cổng (Port)"
+                                android:textColor="@color/text_sub"
+                                android:textSize="11sp" />
+
+                            <EditText
+                                android:id="@+id/et_adb_port"
+                                android:layout_width="match_parent"
+                                android:layout_height="42dp"
+                                android:layout_marginTop="4dp"
+                                android:background="@drawable/bg_input_field"
+                                android:hint="5555"
+                                android:inputType="number"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:text="5555"
+                                android:textColor="@color/text_white"
+                                android:textColorHint="@color/text_sub"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Nút thao tác ADB -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btn_adb_connect"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_btn_gradient"
+                            android:text="⚡ KẾT NỐI ADB"
+                            android:textColor="@color/text_white"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <Button
+                            android:id="@+id/btn_adb_disconnect"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_btn_secondary"
+                            android:text="🔌 NGẮT KẾT NỐI"
+                            android:textColor="@color/text_white"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_adb_guide"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="• Kết nối ADB nội bộ (localhost:5555) hoặc qua Wireless Debugging để chạy auto ổn định 100% không lo văng trợ năng."
+                        android:textColor="@color/text_sub"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <!-- Section: Cấu hình chung -->
                 <TextView

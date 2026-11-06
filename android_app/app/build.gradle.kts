@@ -52,4 +52,7 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // ADB Client
+    implementation("dev.mobile:dadb:1.2.9")
 }

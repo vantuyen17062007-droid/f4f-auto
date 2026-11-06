@@ -137,6 +137,7 @@ object RunnerController {
     }
 
     fun addLog(level: LogLevel, message: String) {
+        android.util.Log.i("RunnerController", "[$level] $message")
         val entry = LogEntry(level = level, message = message)
         val current = _logs.value.toMutableList()
         current.add(entry)

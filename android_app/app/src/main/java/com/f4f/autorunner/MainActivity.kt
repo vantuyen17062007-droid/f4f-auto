@@ -18,12 +18,12 @@ import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.f4f.autorunner.adb.AdbManager
 import com.f4f.autorunner.api.F4FApiClient
 import com.f4f.autorunner.api.SocialAccount
 import com.f4f.autorunner.controller.LogLevel
 import com.f4f.autorunner.controller.RunnerController
 import com.f4f.autorunner.controller.RunnerState
-import com.f4f.autorunner.service.F4FAccessibilityService
 import com.f4f.autorunner.service.FloatingWidgetService
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.*
@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedPlatform = "tiktok"
     private var activeLogFilter: LogLevel? = null
     private var startTimeMs: Long = 0
+    private var userBaseBalance: Int = 0
 
     // Tab Views
     private lateinit var viewDashboard: View
@@ -48,10 +49,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dotHeroStatus: TextView
     private lateinit var tvHeroTitle: TextView
     private lateinit var tvHeroSubtitle: TextView
+    private lateinit var tvDashBalance: TextView
+    private lateinit var tvDashAdbBadge: TextView
     private lateinit var tvTiktokConnStatus: TextView
+    private lateinit var ivTiktokConnIcon: ImageView
     private lateinit var tvInstagramConnStatus: TextView
+    private lateinit var ivInstagramConnIcon: ImageView
     private lateinit var tvDashStatCompleted: TextView
     private lateinit var tvDashStatFailed: TextView
+    private lateinit var tvDashStatCoins: TextView
     private lateinit var tvDashStatTime: TextView
     private lateinit var tvDashStatTotal: TextView
     private lateinit var btnDashStart: Button
@@ -81,7 +87,21 @@ class MainActivity : AppCompatActivity() {
     // Settings Views
     private lateinit var tvSettingsUsername: TextView
     private lateinit var tvSettingsUserid: TextView
+    private lateinit var tvSettingsBalance: TextView
     private lateinit var btnLogout: Button
+
+    // ADB Views in Settings
+    private lateinit var boxAdbStatusDisconnected: View
+    private lateinit var boxAdbStatusConnected: View
+    private lateinit var tvAdbStatusDisconnectedTitle: TextView
+    private lateinit var tvAdbStatusDisconnectedSub: TextView
+    private lateinit var tvAdbStatusConnectedTitle: TextView
+    private lateinit var tvAdbStatusConnectedSub: TextView
+    private lateinit var etAdbHost: EditText
+    private lateinit var etAdbPort: EditText
+    private lateinit var btnAdbConnect: Button
+    private lateinit var btnAdbDisconnect: Button
+    private lateinit var tvAdbGuide: TextView
 
     // Current parameters
     private var maxJobs = 100
@@ -92,17 +112,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        AdbManager.init(this)
         initViews()
         setupBottomNav()
         setupListeners()
         setupStateObservers()
         initTaskControls()
         loadSavedSession()
+        initAdbState()
     }
 
     override fun onResume() {
         super.onResume()
-        checkPermissionsHealth()
+        updateAdbUiState()
+        checkPlatformAccountsHealth()
     }
 
     private fun initViews() {
@@ -116,10 +139,15 @@ class MainActivity : AppCompatActivity() {
         dotHeroStatus = findViewById(R.id.dot_hero_status)
         tvHeroTitle = findViewById(R.id.tv_hero_title)
         tvHeroSubtitle = findViewById(R.id.tv_hero_subtitle)
+        tvDashBalance = findViewById(R.id.tv_dash_balance)
+        tvDashAdbBadge = findViewById(R.id.tv_dash_adb_badge)
         tvTiktokConnStatus = findViewById(R.id.tv_tiktok_conn_status)
+        ivTiktokConnIcon = findViewById(R.id.iv_tiktok_conn_icon)
         tvInstagramConnStatus = findViewById(R.id.tv_instagram_conn_status)
+        ivInstagramConnIcon = findViewById(R.id.iv_instagram_conn_icon)
         tvDashStatCompleted = findViewById(R.id.tv_dash_stat_completed)
         tvDashStatFailed = findViewById(R.id.tv_dash_stat_failed)
+        tvDashStatCoins = findViewById(R.id.tv_dash_stat_coins)
         tvDashStatTime = findViewById(R.id.tv_dash_stat_time)
         tvDashStatTotal = findViewById(R.id.tv_dash_stat_total)
         btnDashStart = findViewById(R.id.btn_dash_start)
@@ -149,7 +177,21 @@ class MainActivity : AppCompatActivity() {
         // Settings
         tvSettingsUsername = findViewById(R.id.tv_settings_username)
         tvSettingsUserid = findViewById(R.id.tv_settings_userid)
+        tvSettingsBalance = findViewById(R.id.tv_settings_balance)
         btnLogout = findViewById(R.id.btn_logout)
+
+        // Settings ADB
+        boxAdbStatusDisconnected = findViewById(R.id.box_adb_status_disconnected)
+        boxAdbStatusConnected = findViewById(R.id.box_adb_status_connected)
+        tvAdbStatusDisconnectedTitle = findViewById(R.id.tv_adb_status_disconnected_title)
+        tvAdbStatusDisconnectedSub = findViewById(R.id.tv_adb_status_disconnected_sub)
+        tvAdbStatusConnectedTitle = findViewById(R.id.tv_adb_status_connected_title)
+        tvAdbStatusConnectedSub = findViewById(R.id.tv_adb_status_connected_sub)
+        etAdbHost = findViewById(R.id.et_adb_host)
+        etAdbPort = findViewById(R.id.et_adb_port)
+        btnAdbConnect = findViewById(R.id.btn_adb_connect)
+        btnAdbDisconnect = findViewById(R.id.btn_adb_disconnect)
+        tvAdbGuide = findViewById(R.id.tv_adb_guide)
     }
 
     private fun setupBottomNav() {
@@ -162,6 +204,8 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_dashboard -> {
                     viewDashboard.visibility = View.VISIBLE
+                    checkPlatformAccountsHealth()
+                    updateAdbUiState()
                     true
                 }
                 R.id.nav_tasks -> {
@@ -174,6 +218,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_settings -> {
                     viewSettings.visibility = View.VISIBLE
+                    updateAdbUiState()
                     true
                 }
                 else -> false
@@ -196,7 +241,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_tasks_help).setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Hướng dẫn Cấu hình")
-                .setMessage("• Số lượng Job: Giới hạn số nhiệm vụ tối đa trong một phiên.\n• Delay: Khoảng thời gian nghỉ ngẫu nhiên giữa các job để tránh checkpoint.\n• Tùy chọn nâng cao: Giữ app chạy nền mượt mà.")
+                .setMessage("• Số lượng Job: Giới hạn số nhiệm vụ tối đa trong một phiên.\n• Delay: Khoảng thời gian nghỉ ngẫu nhiên giữa các job để tránh checkpoint.\n• Tự động hóa qua ADB: Chạy trực tiếp qua lệnh hệ thống, không sợ văng quyền Trợ Năng.")
                 .setPositiveButton("Đã hiểu", null)
                 .show()
         }
@@ -306,13 +351,145 @@ class MainActivity : AppCompatActivity() {
         btnLogout.setOnClickListener {
             showLoginOrLogoutDialog()
         }
+
+        // ADB Connect / Disconnect buttons
+        btnAdbConnect.setOnClickListener {
+            val targetHost = etAdbHost.text.toString().trim().ifEmpty { "127.0.0.1" }
+            val targetPort = etAdbPort.text.toString().trim().toIntOrNull() ?: 5555
+            Toast.makeText(this, "Đang kết nối ADB tới $targetHost:$targetPort...", Toast.LENGTH_SHORT).show()
+            RunnerController.addLog(LogLevel.INFO, "Đang thử kết nối ADB: $targetHost:$targetPort...")
+
+            lifecycleScope.launch {
+                val (ok, message) = AdbManager.connect(this@MainActivity, targetHost, targetPort)
+                updateAdbUiState()
+                if (ok) {
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                    RunnerController.addLog(LogLevel.SUCCESS, message)
+                } else {
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                    RunnerController.addLog(LogLevel.ERROR, message)
+                }
+            }
+        }
+
+        btnAdbDisconnect.setOnClickListener {
+            AdbManager.disconnect()
+            updateAdbUiState()
+            Toast.makeText(this, "Đã ngắt kết nối ADB", Toast.LENGTH_SHORT).show()
+            RunnerController.addLog(LogLevel.WARN, "Đã ngắt kết nối ADB.")
+        }
+    }
+
+    private fun initAdbState() {
+        etAdbHost.setText(AdbManager.host)
+        etAdbPort.setText(AdbManager.port.toString())
+
+        lifecycleScope.launch {
+            if (AdbManager.wasEverConnected) {
+                // Tự động kết nối lại nếu từng kết nối thành công
+                AdbManager.connect(this@MainActivity, AdbManager.host, AdbManager.port)
+            }
+            updateAdbUiState()
+        }
+    }
+
+    private fun updateAdbUiState() {
+        if (AdbManager.isConnected) {
+            tvDashAdbBadge.text = "⚡ ADB: Đã kết nối (${AdbManager.host}:${AdbManager.port})"
+            tvDashAdbBadge.setTextColor(Color.parseColor("#10B981"))
+
+            // Cập nhật thẻ trạng thái trong Cài đặt
+            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_pill_active)
+            tvAdbStatusConnectedTitle.setTextColor(Color.WHITE)
+            tvAdbStatusConnectedSub.text = "Đang kết nối: ${AdbManager.host}:${AdbManager.port}"
+
+            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_card_secondary)
+            tvAdbStatusDisconnectedTitle.setTextColor(Color.parseColor("#94A3B8"))
+            tvAdbStatusDisconnectedSub.text = "Nhấn Ngắt để hủy"
+
+            btnAdbConnect.text = "🔄 KẾT NỐI LẠI"
+        } else if (AdbManager.wasEverConnected) {
+            tvDashAdbBadge.text = "⚡ ADB: Từng kết nối (${AdbManager.lastConnectedTime})"
+            tvDashAdbBadge.setTextColor(Color.parseColor("#F59E0B"))
+
+            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_pill_active)
+            tvAdbStatusDisconnectedTitle.setTextColor(Color.WHITE)
+            tvAdbStatusDisconnectedSub.text = "Đang ngắt kết nối"
+
+            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_card_secondary)
+            tvAdbStatusConnectedTitle.setTextColor(Color.parseColor("#10B981"))
+            tvAdbStatusConnectedSub.text = "Từng kết nối: ${AdbManager.lastConnectedTime}"
+
+            btnAdbConnect.text = "⚡ KẾT NỐI ADB"
+        } else {
+            tvDashAdbBadge.text = "⚡ ADB: Chưa kết nối"
+            tvDashAdbBadge.setTextColor(Color.parseColor("#EF4444"))
+
+            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_pill_active)
+            tvAdbStatusDisconnectedTitle.setTextColor(Color.WHITE)
+            tvAdbStatusDisconnectedSub.text = "Chưa kết nối ADB"
+
+            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_card_secondary)
+            tvAdbStatusConnectedTitle.setTextColor(Color.parseColor("#94A3B8"))
+            tvAdbStatusConnectedSub.text = "Chưa có lịch sử kết nối"
+
+            btnAdbConnect.text = "⚡ KẾT NỐI ADB"
+        }
+    }
+
+    private fun checkPlatformAccountsHealth() {
+        lifecycleScope.launch {
+            if (apiClient.token == null) {
+                tvTiktokConnStatus.text = "Chưa kết nối"
+                tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+
+                tvInstagramConnStatus.text = "Chưa kết nối"
+                tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                return@launch
+            }
+
+            // Kiểm tra TikTok
+            try {
+                val ttAccs = apiClient.getAccounts("tiktok")
+                if (ttAccs.isNotEmpty()) {
+                    tvTiktokConnStatus.text = "Đã kết nối (@${ttAccs[0].getDisplayName()})"
+                    tvTiktokConnStatus.setTextColor(Color.parseColor("#10B981"))
+                    ivTiktokConnIcon.setImageResource(R.drawable.ic_check_circle)
+                    ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                } else {
+                    tvTiktokConnStatus.text = "Chưa kết nối"
+                    tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                    ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
+                    ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                }
+            } catch (_: Exception) {}
+
+            // Kiểm tra Instagram
+            try {
+                val igAccs = apiClient.getAccounts("instagram")
+                if (igAccs.isNotEmpty()) {
+                    tvInstagramConnStatus.text = "Đã kết nối (@${igAccs[0].getDisplayName()})"
+                    tvInstagramConnStatus.setTextColor(Color.parseColor("#10B981"))
+                    ivInstagramConnIcon.setImageResource(R.drawable.ic_check_circle)
+                    ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                } else {
+                    tvInstagramConnStatus.text = "Chưa kết nối"
+                    tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                    ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
+                    ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun setPlatformSelection(plat: String) {
         selectedPlatform = plat
         if (plat == "tiktok") {
             btnSegmentTiktok.setBackgroundResource(R.drawable.bg_pill_active)
-            (btnSegmentTiktok.findViewById<TextView>(android.R.id.text1) ?: btnSegmentTiktok).findViewWithTag<TextView>("tag_txt")
             btnSegmentInstagram.background = null
         } else {
             btnSegmentInstagram.setBackgroundResource(R.drawable.bg_pill_active)
@@ -337,13 +514,13 @@ class MainActivity : AppCompatActivity() {
                     RunnerState.IDLE, RunnerState.STOPPED -> {
                         dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
                         tvHeroTitle.text = "Đang sẵn sàng"
-                        tvHeroSubtitle.text = "Nhấn START để bắt đầu auto"
+                        tvHeroSubtitle.text = "Nhấn START để bắt đầu auto qua ADB"
                         btnDashStart.visibility = View.VISIBLE
                         boxRunningControls.visibility = View.GONE
                     }
                     RunnerState.RUNNING -> {
                         dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
-                        tvHeroTitle.text = "Đang chạy chiến dịch"
+                        tvHeroTitle.text = "Đang chạy chiến dịch ADB"
                         tvHeroSubtitle.text = "Tự động tương tác và nhận xu..."
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
@@ -363,7 +540,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 2. Runner stats
+        // 2. Runner stats & Coin tracking
         lifecycleScope.launch {
             RunnerController.stats.collectLatest { stats ->
                 val completed = stats.followed + stats.liked
@@ -373,6 +550,11 @@ class MainActivity : AppCompatActivity() {
                 tvDashStatCompleted.text = completed.toString()
                 tvDashStatFailed.text = failed.toString()
                 tvDashStatTotal.text = total.toString()
+                tvDashStatCoins.text = "+${stats.coinsEarned} xu"
+
+                val dynamicTotalBalance = userBaseBalance + stats.coinsEarned
+                tvDashBalance.text = "🪙 Số dư F4F: $dynamicTotalBalance xu"
+                tvSettingsBalance.text = "🪙 Số dư: $dynamicTotalBalance xu"
             }
         }
 
@@ -436,19 +618,10 @@ class MainActivity : AppCompatActivity() {
         scrollLogs.post { scrollLogs.fullScroll(View.FOCUS_DOWN) }
     }
 
-    private fun checkPermissionsHealth() {
-        val hasAcc = F4FAccessibilityService.isRunning()
-        val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
-
-        if (!hasAcc) {
-            tvHeroSubtitle.text = "Cần bật quyền Trợ Năng để tự động click"
-        }
-    }
-
     private fun startRunner() {
-        if (!F4FAccessibilityService.isRunning()) {
-            Toast.makeText(this, "Vui lòng cấp quyền Trợ Năng trước!", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        if (!AdbManager.isConnected) {
+            Toast.makeText(this, "Chưa kết nối ADB! Vui lòng vào Cài đặt để kết nối ADB trước.", Toast.LENGTH_LONG).show()
+            bottomNav.selectedItemId = R.id.nav_settings
             return
         }
 
@@ -512,17 +685,23 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val data = apiClient.login(user, pass)
+                val displayBalance = data.user.getDisplayBalance()
+                userBaseBalance = data.user.getNumericBalance()
+
                 getSharedPreferences("f4f_config", Context.MODE_PRIVATE).edit()
                     .putString("f4f_user", user)
                     .putString("f4f_pass", pass)
+                    .putString("f4f_balance", displayBalance)
+                    .putInt("f4f_balance_num", userBaseBalance)
                     .apply()
 
                 tvSettingsUsername.text = data.user.username ?: user
                 tvSettingsUserid.text = "ID: ${data.user.id ?: "F4F"}"
-                tvTiktokConnStatus.text = "Đã kết nối"
-                tvInstagramConnStatus.text = "Đã kết nối"
+                tvSettingsBalance.text = "🪙 Số dư: $displayBalance"
+                tvDashBalance.text = "🪙 Số dư F4F: $displayBalance"
 
-                RunnerController.addLog(LogLevel.SUCCESS, "Đăng nhập thành công: @${data.user.username}")
+                RunnerController.addLog(LogLevel.SUCCESS, "Đăng nhập thành công: @${data.user.username} | $displayBalance")
+                checkPlatformAccountsHealth()
                 loadAccounts()
             } catch (e: Exception) {
                 RunnerController.addLog(LogLevel.ERROR, "Đăng nhập thất bại: ${e.message}")
@@ -551,6 +730,12 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
         val user = prefs.getString("f4f_user", "") ?: ""
         val pass = prefs.getString("f4f_pass", "") ?: ""
+        val savedBal = prefs.getString("f4f_balance", "0 xu") ?: "0 xu"
+        userBaseBalance = prefs.getInt("f4f_balance_num", 0)
+
+        tvSettingsBalance.text = "🪙 Số dư: $savedBal"
+        tvDashBalance.text = "🪙 Số dư F4F: $savedBal"
+
         if (user.isNotEmpty() && pass.isNotEmpty()) {
             performLogin(user, pass)
         }

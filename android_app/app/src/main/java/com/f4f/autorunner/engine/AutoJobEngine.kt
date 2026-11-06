@@ -3,11 +3,11 @@ package com.f4f.autorunner.engine
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.f4f.autorunner.adb.AdbManager
+import com.f4f.autorunner.adb.UiXmlParser
 import com.f4f.autorunner.api.F4FApiClient
 import com.f4f.autorunner.api.F4FJob
 import com.f4f.autorunner.controller.LogLevel
-import com.f4f.autorunner.controller.RunnerController
-import com.f4f.autorunner.service.F4FAccessibilityService
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -52,6 +52,10 @@ class AutoJobEngine(
 
         jobScope?.launch {
             try {
+                if (!AdbManager.isConnected) {
+                    onLog(LogLevel.ERROR, "Chưa kết nối ADB! Vui lòng vào Cài đặt để kết nối ADB trước.")
+                    return@launch
+                }
                 runJobLoop()
             } catch (_: CancellationException) {
                 onLog(LogLevel.WARN, "Tiến trình chạy đã bị hủy theo yêu cầu.")
@@ -85,7 +89,6 @@ class AutoJobEngine(
     private suspend fun checkCanProceed(): Boolean {
         if (!isRunning || jobScope?.isActive == false) return false
 
-        // Nếu đang tạm dừng, đợi cho đến khi resume hoặc stop
         while (isPaused && isRunning) {
             delay(500)
         }
@@ -106,7 +109,7 @@ class AutoJobEngine(
     private suspend fun runJobLoop() {
         onLog(
             LogLevel.INFO,
-            "Bắt đầu chiến dịch $platform (Mục tiêu: $maxJobs jobs, Delay: ${delayMin}-${delayMax}s)"
+            "Bắt đầu chiến dịch ADB [$platform] (Mục tiêu: $maxJobs jobs, Delay: ${delayMin}-${delayMax}s)"
         )
         var totalProcessed = 0
         var consecutiveErrors = 0
@@ -156,7 +159,7 @@ class AutoJobEngine(
                         consecutiveErrors = 0
                     }
 
-                    // Mô phỏng lướt feed chống checkpoint
+                    // Mô phỏng lướt feed chống checkpoint qua ADB
                     if (antiBanEveryNJobs > 0 && jobsSinceHuman >= antiBanEveryNJobs) {
                         onLog(LogLevel.INFO, "[Anti-Ban] Lướt feed $antiBanScrollTimes lần...")
                         triggerAntiBan()
@@ -180,7 +183,7 @@ class AutoJobEngine(
             }
         }
 
-        onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
+        onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy ADB! Tổng nhận: ~${stats.coinsEarned} xu.")
     }
 
     private suspend fun processJob(job: F4FJob): String {
@@ -190,8 +193,8 @@ class AutoJobEngine(
 
         if (!checkCanProceed()) return "stopped"
 
-        // 1. Mở trang đích
-        val openOk = openTarget(target, job.typeJob)
+        // 1. Mở trang đích qua ADB
+        val openOk = openTargetViaAdb(target, job.typeJob)
         if (!openOk) {
             onLog(LogLevel.WARN, "Không thể mở liên kết -> Bỏ qua job")
             try {
@@ -201,27 +204,48 @@ class AutoJobEngine(
             return "skipped"
         }
 
-        val service = F4FAccessibilityService.instance
-        if (service == null) {
-            onLog(LogLevel.ERROR, "Dịch vụ Trợ Năng Accessibility bị tắt!")
-            return "failed"
-        }
-
-        // Chờ trang tải và thử tìm nút (tối đa 4s)
-        cancellableDelay(2)
+        // Chờ giao diện tải
+        cancellableDelay(3)
         if (!checkCanProceed()) return "stopped"
-        service.dismissPopups()
+
+        // Đóng các popup quảng cáo / đồng bộ
+        dismissPopupsViaAdb()
 
         var state = "failed"
-        val deadline = System.currentTimeMillis() + 4000L
+        val deadline = System.currentTimeMillis() + 4500L
         while (System.currentTimeMillis() <= deadline && checkCanProceed()) {
-            state = if (job.typeJob == "like") {
-                service.performLikeTikTok()
+            val xml = AdbManager.dumpUiXml()
+            val nodes = UiXmlParser.parseNodes(xml)
+
+            if (job.typeJob == "like") {
+                val (likeState, pt) = UiXmlParser.findLikeState(nodes)
+                if (likeState == "already") {
+                    state = "already"
+                    break
+                }
+                if (pt != null) {
+                    AdbManager.tap(pt.x, pt.y)
+                    state = "liked"
+                    break
+                } else {
+                    // Double tap vào giữa màn hình video để Like (chuẩn TikTok)
+                    AdbManager.doubleTap(360, 800)
+                    state = "liked"
+                    break
+                }
             } else {
-                service.performFollow()
+                val (followState, pt) = UiXmlParser.findFollowButton(nodes)
+                if (followState == "already" || followState == "requested") {
+                    state = followState
+                    break
+                }
+                if (pt != null) {
+                    AdbManager.tap(pt.x, pt.y)
+                    state = "followed"
+                    break
+                }
             }
-            if (state != "failed") break
-            delay(600)
+            delay(800)
         }
 
         if (!checkCanProceed()) return "stopped"
@@ -235,14 +259,14 @@ class AutoJobEngine(
                 "already"
             }
             "followed" -> {
-                onLog(LogLevel.SUCCESS, "Đã bấm Follow thành công!")
+                onLog(LogLevel.SUCCESS, "Đã bấm Follow qua ADB thành công!")
                 stats.followed++
                 cancellableDelay(2)
                 reportComplete(job)
                 "followed"
             }
             "liked" -> {
-                onLog(LogLevel.SUCCESS, "Đã bấm Like video thành công!")
+                onLog(LogLevel.SUCCESS, "Đã bấm Like video qua ADB thành công!")
                 stats.liked++
                 cancellableDelay(2)
                 reportComplete(job)
@@ -275,12 +299,13 @@ class AutoJobEngine(
                 val res = apiClient.completeJob(platform, job.id, accountId, job.typeJob)
                 val coins = res?.getCoinReceivedInt(job.getRewardInt()) ?: job.getRewardInt()
                 stats.coinsEarned += coins
+                onStatsUpdated(stats)
                 onLog(LogLevel.SUCCESS, "Nhận thành công +$coins xu! (Tổng phiên: ~${stats.coinsEarned} xu)")
                 return
             } catch (e: Exception) {
                 val isBusy = e.message?.contains("400") == true ||
-                             e.message?.contains("đồng bộ") == true ||
-                             e.message?.contains("bận") == true
+                        e.message?.contains("đồng bộ") == true ||
+                        e.message?.contains("bận") == true
                 if (isBusy && attempt < 2 && checkCanProceed()) {
                     val waitMs = retryDelays[attempt]
                     onLog(LogLevel.WARN, "F4F đang kiểm tra đồng bộ, thử lại sau ${waitMs / 1000}s...")
@@ -293,7 +318,7 @@ class AutoJobEngine(
         }
     }
 
-    private fun openTarget(target: String, typeJob: String): Boolean {
+    private suspend fun openTargetViaAdb(target: String, typeJob: String): Boolean {
         return try {
             val url = when {
                 target.startsWith("http://") || target.startsWith("https://") -> target
@@ -301,27 +326,21 @@ class AutoJobEngine(
                 else -> "https://www.tiktok.com/@${target.removePrefix("@")}"
             }
 
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-
-            findInstalledAppPackage(context, platform)?.let { pkg ->
-                intent.setPackage(pkg)
-            }
-
-            context.startActivity(intent)
+            val pkg = if (platform == "instagram") "com.instagram.android" else "com.ss.android.ugc.trill"
+            AdbManager.openUrl(url, pkg)
             true
         } catch (_: Exception) {
+            // Fallback mở bằng Android Activity thông thường
             try {
                 val url = when {
                     target.startsWith("http://") || target.startsWith("https://") -> target
                     platform == "instagram" -> "https://www.instagram.com/${target.removePrefix("@")}"
                     else -> "https://www.tiktok.com/@${target.removePrefix("@")}"
                 }
-                val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
-                context.startActivity(fallbackIntent)
+                context.startActivity(intent)
                 true
             } catch (_: Exception) {
                 false
@@ -329,32 +348,24 @@ class AutoJobEngine(
         }
     }
 
-    private fun findInstalledAppPackage(ctx: Context, plat: String): String? {
-        val candidates = if (plat == "instagram") {
-            listOf("com.instagram.android", "com.instagram.lite")
-        } else {
-            listOf(
-                "com.ss.android.ugc.trill",
-                "com.zhiliaoapp.musically",
-                "com.zhiliaoapp.musically.go",
-                "com.ss.android.ugc.aweme"
-            )
-        }
-        val pm = ctx.packageManager
-        for (pkg in candidates) {
-            try {
-                pm.getPackageInfo(pkg, 0)
-                return pkg
-            } catch (_: Exception) {}
-        }
-        return null
+    private suspend fun dismissPopupsViaAdb() {
+        try {
+            val xml = AdbManager.dumpUiXml()
+            val nodes = UiXmlParser.parseNodes(xml)
+            val pt = UiXmlParser.findPopupDismissButton(nodes)
+            if (pt != null) {
+                AdbManager.tap(pt.x, pt.y)
+                delay(300)
+            }
+        } catch (_: Exception) {}
     }
 
-    private suspend fun triggerAntiBan() = withContext(Dispatchers.Main) {
-        val completer = CompletableDeferred<Unit>()
-        F4FAccessibilityService.instance?.simulateHumanBrowse(antiBanScrollTimes) {
-            completer.complete(Unit)
-        } ?: completer.complete(Unit)
-        completer.await()
+    private suspend fun triggerAntiBan() {
+        try {
+            repeat(antiBanScrollTimes) {
+                AdbManager.swipe(360, 1200, 360, 400, 350)
+                delay(1200)
+            }
+        } catch (_: Exception) {}
     }
 }

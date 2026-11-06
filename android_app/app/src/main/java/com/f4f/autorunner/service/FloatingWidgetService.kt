@@ -93,6 +93,7 @@ class FloatingWidgetService : Service() {
         val dotIndicator = floatingView?.findViewById<TextView>(R.id.dot_floating_indicator)
         val tvSuccess = floatingView?.findViewById<TextView>(R.id.tv_floating_success)
         val tvFailed = floatingView?.findViewById<TextView>(R.id.tv_floating_failed)
+        val tvCoins = floatingView?.findViewById<TextView>(R.id.tv_floating_coins)
         val boxButtons = floatingView?.findViewById<View>(R.id.box_floating_buttons)
 
         btnResume?.setOnClickListener {
@@ -145,6 +146,7 @@ class FloatingWidgetService : Service() {
                 val failed = stats.skipped + stats.errors
                 tvSuccess?.text = "$completed Thành công"
                 tvFailed?.text = "$failed Thất bại"
+                tvCoins?.text = "🪙 +${stats.coinsEarned} xu"
             }
         }
 
