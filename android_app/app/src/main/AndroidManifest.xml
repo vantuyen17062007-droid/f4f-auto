@@ -5,10 +5,18 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Android 11+: cần khai báo để kiểm tra TikTok / Instagram đã cài hay chưa -->
+    <queries>
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.trill" />
+        <package android:name="com.instagram.android" />
+    </queries>
+
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_round"
@@ -20,6 +28,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -40,11 +49,16 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Dịch vụ hiển thị nút nổi điều khiển trên màn hình -->
+        <!-- Foreground service: giữ phiên auto sống khi app xuống nền + hiển thị nút nổi -->
         <service
             android:name=".service.FloatingWidgetService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="overlay_runner_control" />
+        </service>
 
     </application>
 

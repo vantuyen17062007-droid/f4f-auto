@@ -4,11 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.f4f.autorunner.adb.AdbManager
+import com.f4f.autorunner.adb.UiNode
 import com.f4f.autorunner.adb.UiXmlParser
+import com.f4f.autorunner.api.ApiException
 import com.f4f.autorunner.api.F4FApiClient
 import com.f4f.autorunner.api.F4FJob
 import com.f4f.autorunner.controller.LogLevel
 import com.f4f.autorunner.service.F4FAccessibilityService
+import com.f4f.autorunner.util.AppPackages
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -40,6 +43,9 @@ class AutoJobEngine(
     private var jobScope: CoroutineScope? = null
     val stats = RunnerStats()
     private var jobsSinceHuman = 0
+    private var pkg: String = ""
+    private val usernameRegex = Regex("^[A-Za-z0-9_.]{1,64}$")
+
     var isRunning = false
         private set
     var isPaused = false
@@ -61,6 +67,13 @@ class AutoJobEngine(
                     return@launch
                 }
 
+                pkg = AppPackages.resolve(context, platform).orEmpty()
+                if (pkg.isEmpty()) {
+                    val appName = if (platform == "instagram") "Instagram" else "TikTok"
+                    onLog(LogLevel.ERROR, "Chưa cài ứng dụng $appName trên máy này! Hãy cài đặt rồi chạy lại.")
+                    return@launch
+                }
+
                 if (hasAdb) {
                     onLog(LogLevel.INFO, "⚡ Sử dụng chế độ: ADB Tự động hóa (Tối ưu, ổn định)")
                 } else {
@@ -75,6 +88,8 @@ class AutoJobEngine(
             } finally {
                 isRunning = false
                 isPaused = false
+                // Khi bị stop() thì scope đã bị hủy nên withContext sẽ ném CancellationException
+                // và onFinished không chạy -> không ghi đè state của phiên mới.
                 withContext(Dispatchers.Main) {
                     onFinished?.invoke()
                 }
@@ -117,6 +132,64 @@ class AutoJobEngine(
         }
     }
 
+    // ============================ Hàm dùng chung ADB / Trợ Năng ============================
+
+    private suspend fun snapshot(): List<UiNode> =
+        if (AdbManager.isConnected) {
+            UiXmlParser.parseNodes(AdbManager.dumpUiXml())
+        } else {
+            F4FAccessibilityService.instance?.snapshotNodes().orEmpty()
+        }
+
+    private suspend fun tap(x: Int, y: Int) {
+        if (AdbManager.isConnected) {
+            AdbManager.tap(x, y)
+        } else {
+            F4FAccessibilityService.instance?.tapAt(x, y)
+        }
+    }
+
+    private suspend fun doubleTapCenter() {
+        if (AdbManager.isConnected) {
+            AdbManager.likeCenter()
+        } else {
+            val cx = AdbManager.screenWidth / 2
+            val cy = (AdbManager.screenHeight * 0.45).toInt()
+            F4FAccessibilityService.instance?.doubleTapAt(cx, cy)
+        }
+    }
+
+    private suspend fun dismissPopupIfAny() {
+        val pt = UiXmlParser.findPopupDismissButton(snapshot()) ?: return
+        tap(pt.x, pt.y)
+        delay(800)
+    }
+
+    private fun followNeedsClickable() = !AdbManager.isConnected
+
+    /** Sau khi bấm Follow: đợi, đóng popup, đọc lại giao diện để XÁC MINH đã follow thật. */
+    private suspend fun verifyFollowed(hadTargetPoint: Boolean = false): String {
+        delay(1200)
+        dismissPopupIfAny()
+        if (AdbManager.isConnected) {
+            // Đóng bottom sheet hỏi quyền thông báo của TikTok nếu xuất hiện
+            AdbManager.keyevent(4)
+            delay(500)
+        }
+        val nodes = snapshot()
+        val (s, _) = UiXmlParser.findFollowButton(nodes, followNeedsClickable())
+        return when (s) {
+            "already" -> "followed"
+            "requested" -> "requested"
+            else -> {
+                // Nếu đã bấm trúng nút Follow (hadTargetPoint) nhưng dump sau đó rỗng do animation/idle timeout
+                if (hadTargetPoint && nodes.isEmpty()) "followed" else "failed"
+            }
+        }
+    }
+
+    // ============================ Vòng lặp chính ============================
+
     private suspend fun runJobLoop() {
         onLog(
             LogLevel.INFO,
@@ -140,6 +213,10 @@ class AutoJobEngine(
                 val jobs = try {
                     apiClient.getJobs(platform, accountName, typeJob = tJob)
                 } catch (e: Exception) {
+                    if (e is ApiException && e.statusCode == 401) {
+                        onLog(LogLevel.ERROR, "Phiên đăng nhập F4F hết hạn hoặc sai mật khẩu. Hãy đăng nhập lại rồi chạy tiếp.")
+                        return
+                    }
                     onLog(LogLevel.ERROR, "Lỗi kết nối lấy job ($tJob): ${e.message}")
                     cancellableDelay(4)
                     continue
@@ -153,19 +230,23 @@ class AutoJobEngine(
                     job.typeJob = tJob
 
                     val result = processJob(job)
+                    if (result == "stopped") break // người dùng dừng: không tính là lỗi
+
                     totalProcessed++
                     jobsSinceHuman++
 
-                    if (result in listOf("followed", "liked", "already", "skipped")) {
-                        consecutiveErrors = 0
-                    } else {
-                        stats.errors++
-                        consecutiveErrors++
+                    when (result) {
+                        "followed", "liked", "already" -> consecutiveErrors = 0
+                        "skipped" -> consecutiveErrors++ // stats.skipped đã được tăng trong processJob
+                        else -> {
+                            stats.errors++
+                            consecutiveErrors++
+                        }
                     }
                     onStatsUpdated(stats)
 
                     if (consecutiveErrors >= 5) {
-                        onLog(LogLevel.WARN, "Gặp 5 lỗi liên tiếp! Tạm dừng 15s để làm mới...")
+                        onLog(LogLevel.WARN, "Gặp 5 job thất bại liên tiếp! Tạm dừng 15s để làm mới...")
                         cancellableDelay(15)
                         consecutiveErrors = 0
                     }
@@ -194,7 +275,9 @@ class AutoJobEngine(
             }
         }
 
-        onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
+        if (totalProcessed >= maxJobs) {
+            onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
+        }
     }
 
     private suspend fun processJob(job: F4FJob): String {
@@ -223,48 +306,42 @@ class AutoJobEngine(
 
         // ==================== A. XỬ LÝ JOB LIKE ====================
         if (job.typeJob == "like") {
-            if (AdbManager.isConnected) {
-                // Trên TikTok/Instagram, Double-tap vào tâm video đảm bảo thả tim 100% cực nhanh, không lo vướng uiautomator
-                AdbManager.likeCenter()
-                state = "liked"
+            val nodesBefore = snapshot()
+            val (before, _) = UiXmlParser.findLikeState(nodesBefore)
+            if (before == "already") {
+                state = "already"
+            } else {
+                doubleTapCenter()
                 cancellableDelay(1)
-            } else if (F4FAccessibilityService.isRunning()) {
-                val accState = F4FAccessibilityService.instance?.performLikeTikTok() ?: "failed"
-                state = if (accState == "already") "already" else "liked"
+                val nodesAfter = snapshot()
+                val (after, _) = UiXmlParser.findLikeState(nodesAfter)
+                // Nếu giao diện xác nhận đã thích, HOẶC không dump được do video đang phát animation 60fps nhưng đã double-tap thả tim
+                state = if (after == "already" || (nodesAfter.isEmpty() && AdbManager.isConnected)) "liked" else "failed"
             }
         }
         // ==================== B. XỬ LÝ JOB FOLLOW ====================
         else {
-            if (AdbManager.isConnected) {
-                // Thử dump UI nhanh
-                val xml = AdbManager.dumpUiXml()
-                val nodes = UiXmlParser.parseNodes(xml)
-                val (followState, pt) = UiXmlParser.findFollowButton(nodes)
+            val (followState, pt) = UiXmlParser.findFollowButton(snapshot(), followNeedsClickable())
 
-                if (followState == "already" || followState == "requested") {
-                    state = followState
-                } else if (pt != null) {
-                    AdbManager.tap(pt.x, pt.y)
-                    state = "followed"
-                    // Bấm phím Back để đóng popup hỏi quyền thông báo của TikTok nếu có
-                    delay(800)
-                    AdbManager.keyevent(4)
-                } else {
-                    // Nếu không dump được do video animation hoặc nút bị che, dùng tọa độ nút Follow chuẩn TikTok
+            state = when {
+                followState == "already" || followState == "requested" -> followState
+                pt != null -> {
+                    tap(pt.x, pt.y)
+                    verifyFollowed(hadTargetPoint = true)
+                }
+                AdbManager.isConnected -> {
+                    // Không đọc được giao diện: thử tọa độ chuẩn nhưng vẫn phải xác minh lại
                     onLog(LogLevel.INFO, "Dùng tọa độ chuẩn để bấm Follow...")
                     AdbManager.followTikTokHeuristic()
-                    state = "followed"
-                    delay(800)
-                    AdbManager.keyevent(4)
+                    verifyFollowed(hadTargetPoint = true)
                 }
-            } else if (F4FAccessibilityService.isRunning()) {
-                state = F4FAccessibilityService.instance?.performFollow() ?: "failed"
+                else -> "failed"
             }
         }
 
         if (!checkCanProceed()) return "stopped"
 
-        // 3. Xử lý kết quả & báo cáo API
+        // 3. Xử lý kết quả & báo cáo API (chỉ báo hoàn thành khi đã xác minh)
         return when (state) {
             "already" -> {
                 onLog(LogLevel.INFO, "Đã thực hiện từ trước -> Nhận thưởng...")
@@ -294,7 +371,7 @@ class AutoJobEngine(
                 "followed"
             }
             else -> {
-                onLog(LogLevel.WARN, "Không hoàn thành tương tác -> Bỏ qua job")
+                onLog(LogLevel.WARN, "Không xác minh được tương tác -> Bỏ qua job (không báo hoàn thành)")
                 try {
                     apiClient.skipJob(platform, job.id, accountId, accountName, target)
                 } catch (_: Exception) {}
@@ -317,7 +394,7 @@ class AutoJobEngine(
                 onLog(LogLevel.SUCCESS, "Nhận thành công +$coins xu! (Tổng phiên: ~${stats.coinsEarned} xu)")
                 return
             } catch (e: Exception) {
-                val isBusy = e.message?.contains("400") == true ||
+                val isBusy = (e is ApiException && e.statusCode == 400) ||
                         e.message?.contains("đồng bộ") == true ||
                         e.message?.contains("bận") == true
                 if (isBusy && attempt < 2 && checkCanProceed()) {
@@ -333,14 +410,25 @@ class AutoJobEngine(
     }
 
     private suspend fun openTarget(target: String, typeJob: String): Boolean {
+        val trimmed = target.trim()
+        val clean = trimmed.removePrefix("@")
+
         val url = when {
-            target.startsWith("http://") || target.startsWith("https://") -> target
-            platform == "instagram" -> "https://www.instagram.com/${target.removePrefix("@")}"
-            typeJob == "like" && target.all { it.isDigit() } -> "https://www.tiktok.com/@video/video/$target"
-            else -> "https://www.tiktok.com/@${target.removePrefix("@")}"
+            trimmed.startsWith("https://") -> trimmed
+            trimmed.startsWith("http://") -> "https://" + trimmed.removePrefix("http://")
+            platform == "instagram" ->
+                if (usernameRegex.matches(clean)) "https://www.instagram.com/$clean" else return false
+            typeJob == "like" && trimmed.isNotEmpty() && trimmed.all { it.isDigit() } ->
+                "https://www.tiktok.com/@video/video/$trimmed"
+            else ->
+                if (usernameRegex.matches(clean)) "https://www.tiktok.com/@$clean" else return false
         }
 
-        val pkg = if (platform == "instagram") "com.instagram.android" else "com.ss.android.ugc.trill"
+        // Dữ liệu từ server: chỉ mở khi là link TikTok / Instagram hợp lệ
+        if (!AdbManager.isSafeTargetUrl(url)) {
+            onLog(LogLevel.WARN, "Liên kết không hợp lệ hoặc không an toàn, đã bỏ qua: $url")
+            return false
+        }
 
         // Ưu tiên mở qua ADB nếu kết nối
         if (AdbManager.isConnected) {
@@ -354,21 +442,12 @@ class AutoJobEngine(
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                if (pkg.isNotEmpty()) setPackage(pkg)
+                setPackage(pkg)
             }
             context.startActivity(intent)
             true
         } catch (_: Exception) {
-            try {
-                // Thử mở không chỉ định package nếu app chưa cài hoặc intent bị từ chối
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                context.startActivity(intent)
-                true
-            } catch (_: Exception) {
-                false
-            }
+            false
         }
     }
 
@@ -384,8 +463,10 @@ class AutoJobEngine(
                 F4FAccessibilityService.instance?.simulateHumanBrowse(antiBanScrollTimes) {
                     completeSignal.complete(Unit)
                 }
-                completeSignal.await()
+                withTimeoutOrNull(30_000L) { completeSignal.await() }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {}
     }
 }

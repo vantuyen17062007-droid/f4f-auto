@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,7 +35,31 @@ class F4FApiClient {
         return mac.doFinal(payload).joinToString("") { "%02x".format(it) }
     }
 
+    private var savedUser: String? = null
+    private var savedPass: String? = null
+
+    /** Gọi API; nếu token hết hạn (401) thì tự đăng nhập lại 1 lần rồi thử lại. */
     private suspend fun <T> request(
+        method: String,
+        path: String,
+        clazz: Class<T>?,
+        jsonBody: String? = null,
+        queryParams: Map<String, String>? = null
+    ): ApiResponse<T> {
+        try {
+            return doRequest(method, path, clazz, jsonBody, queryParams)
+        } catch (e: ApiException) {
+            val u = savedUser
+            val p = savedPass
+            if (e.statusCode == 401 && path != "/user/auth/login" && u != null && p != null) {
+                login(u, p)
+                return doRequest(method, path, clazz, jsonBody, queryParams)
+            }
+            throw e
+        }
+    }
+
+    private suspend fun <T> doRequest(
         method: String,
         path: String,
         clazz: Class<T>?,
@@ -44,14 +69,13 @@ class F4FApiClient {
         val ts = System.currentTimeMillis() / 1000
         val sign = generateSign(ts, method, path)
 
-        var url = baseUrl + path
-        if (!queryParams.isNullOrEmpty()) {
-            val queryString = queryParams.entries.joinToString("&") { "${it.key}=${it.value}" }
-            url += "?$queryString"
-        }
+        // addQueryParameter tự động URL-encode giá trị (tên tài khoản có dấu cách, ký tự đặc biệt...)
+        val httpUrl = (baseUrl + path).toHttpUrl().newBuilder().apply {
+            queryParams?.forEach { (k, v) -> addQueryParameter(k, v) }
+        }.build()
 
         val requestBuilder = Request.Builder()
-            .url(url)
+            .url(httpUrl)
             .addHeader("accept", "application/json")
             .addHeader("x-ts", ts.toString())
             .addHeader("x-sign", sign)
@@ -95,7 +119,7 @@ class F4FApiClient {
         }
 
         if (statusCode >= 400 || !response.isSuccessful) {
-            throw RuntimeException(message ?: "Lỗi máy chủ ($statusCode)")
+            throw ApiException(statusCode, message ?: "Lỗi máy chủ ($statusCode)")
         }
 
         val dataElement = jsonObject.get("data")
@@ -114,6 +138,8 @@ class F4FApiClient {
         val data = res.data ?: throw RuntimeException("Dữ liệu đăng nhập trống!")
         this.token = data.accessToken
         this.user = data.user
+        this.savedUser = user
+        this.savedPass = pass
         return data
     }
 
@@ -211,3 +237,6 @@ class F4FApiClient {
         }
     }
 }
+
+/** Lỗi trả về từ API F4F kèm mã trạng thái (401 = token hết hạn, 400 = đang đồng bộ...). */
+class ApiException(val statusCode: Int, message: String) : RuntimeException(message)

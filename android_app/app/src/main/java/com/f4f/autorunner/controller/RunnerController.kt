@@ -100,7 +100,7 @@ object RunnerController {
             },
             onFinished = {
                 _state.value = RunnerState.STOPPED
-                addLog(LogLevel.SUCCESS, "Phiên chạy đã hoàn thành toàn bộ mục tiêu.")
+                addLog(LogLevel.INFO, "Phiên chạy đã kết thúc.")
             }
         )
 

@@ -6,4 +6,5 @@
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:notificationTimeout="100"
+    android:packageNames="com.zhiliaoapp.musically,com.ss.android.ugc.trill,com.instagram.android"
     android:description="@string/accessibility_service_desc" />

@@ -8,8 +8,16 @@ import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.f4f.autorunner.adb.UiNode
+import com.f4f.autorunner.adb.UiXmlParser
 import com.f4f.autorunner.controller.RunnerController
+import com.f4f.autorunner.util.AppPackages
 
+/**
+ * Service chỉ làm 3 việc "thô": đọc cây giao diện (snapshotNodes), chạm tọa độ (tapAt / doubleTapAt)
+ * và vuốt feed. Việc nhận diện Follow/Like dùng chung UiXmlParser với chế độ ADB để hai chế độ
+ * cho kết quả giống nhau, và AutoJobEngine sẽ xác minh kết quả sau khi bấm.
+ */
 class F4FAccessibilityService : AccessibilityService() {
 
     companion object {
@@ -17,28 +25,6 @@ class F4FAccessibilityService : AccessibilityService() {
             private set
 
         fun isRunning(): Boolean = instance != null
-
-        private val FOLLOW_LABELS = setOf(
-            "follow", "theo dõi", "theo doi", "follow lại", "follow lai",
-            "follow back", "theo dõi lại", "theo doi lai"
-        )
-
-        private val FOLLOWED_LABELS = setOf(
-            "đã follow", "da follow", "đang follow", "dang follow",
-            "following", "đã theo dõi", "da theo doi", "đang theo dõi", "dang theo doi",
-            "bạn bè", "ban be", "friends", "followed"
-        )
-
-        private val REQUESTED_LABELS = setOf(
-            "đã yêu cầu", "da yeu cau", "requested", "yêu cầu đã gửi", "request sent"
-        )
-
-        private val POPUP_DISMISS_LABELS = setOf(
-            "để sau", "de sau", "không phải bây giờ", "khong phai bay gio", "lúc khác", "luc khac",
-            "hủy", "huy", "từ chối", "tu choi", "không cho phép", "khong cho phep",
-            "bỏ qua", "bo qua", "đóng", "dong", "not now", "cancel", "dismiss",
-            "don't allow", "later", "never", "remind me later", "skip"
-        )
     }
 
     override fun onServiceConnected() {
@@ -53,118 +39,78 @@ class F4FAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!RunnerController.isRunning) return
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            dismissPopups()
-        }
+        // Chỉ xử lý popup khi cửa sổ thuộc TikTok / Instagram, không đụng tới app/hệ thống khác
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg in AppPackages.ALL) dismissPopups()
     }
 
     override fun onInterrupt() {}
 
     /**
-     * Bấm nút Follow trên TikTok hoặc Instagram.
-     * Trả về: "followed", "already", "requested", hoặc "failed"
+     * Chụp cây giao diện của cửa sổ đang hiển thị thành danh sách UiNode.
+     * Trả về rỗng nếu cửa sổ hiện tại không phải TikTok / Instagram.
      */
-    fun performFollow(): String {
-        if (!RunnerController.isRunning) return "stopped"
+    fun snapshotNodes(): List<UiNode> {
+        val root = rootInActiveWindow ?: return emptyList()
+        val pkg = root.packageName?.toString().orEmpty()
+        if (pkg !in AppPackages.ALL) return emptyList()
 
-        val root = rootInActiveWindow ?: return "failed"
+        val out = ArrayList<UiNode>()
 
-        // 1. Kiểm tra Instagram Follow Button ID đặc trưng
-        val igButtons = root.findAccessibilityNodeInfosByViewId("com.instagram.android:id/profile_header_follow_button")
-        if (igButtons.isNotEmpty()) {
-            val btn = igButtons[0]
-            val text = (btn.text ?: btn.contentDescription ?: "").toString().trim().lowercase()
-            if (FOLLOWED_LABELS.any { text.contains(it) }) return "already"
-            if (REQUESTED_LABELS.any { text.contains(it) }) return "requested"
-
-            if (clickNodeOrCoordinates(btn)) return "followed"
-        }
-
-        // 2. Quét toàn bộ cây giao diện tìm nhãn Follow
-        val allNodes = ArrayList<AccessibilityNodeInfo>()
-        collectAllNodes(root, allNodes)
-
-        for (node in allNodes) {
-            if (!RunnerController.isRunning) return "stopped"
-
-            val text = (node.text ?: node.contentDescription ?: "").toString().trim().lowercase()
-            if (text.isEmpty()) continue
-
-            if (FOLLOWED_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
-                return "already"
-            }
-            if (REQUESTED_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
-                return "requested"
-            }
-            if (FOLLOW_LABELS.any { label -> text == label || text.startsWith("$label ") }) {
-                if (clickNodeOrCoordinates(node)) {
-                    return "followed"
-                }
+        fun walk(node: AccessibilityNodeInfo?, depth: Int) {
+            if (node == null || depth > 40) return
+            val rect = Rect()
+            node.getBoundsInScreen(rect)
+            out.add(
+                UiNode(
+                    text = (node.text ?: "").toString().trim(),
+                    desc = (node.contentDescription ?: "").toString().trim(),
+                    resId = node.viewIdResourceName.orEmpty(),
+                    className = node.className?.toString().orEmpty(),
+                    packageName = pkg,
+                    bounds = rect,
+                    clickable = node.isClickable,
+                    selected = node.isSelected
+                )
+            )
+            for (i in 0 until node.childCount) {
+                walk(node.getChild(i), depth + 1)
             }
         }
 
-        return "failed"
+        walk(root, 0)
+        return out
     }
 
-    /**
-     * Bấm Like video trên TikTok.
-     * Trả về: "liked", "already", hoặc "failed"
-     */
-    fun performLikeTikTok(): String {
-        if (!RunnerController.isRunning) return "stopped"
-
-        val root = rootInActiveWindow ?: return "failed"
-        val allNodes = ArrayList<AccessibilityNodeInfo>()
-        collectAllNodes(root, allNodes)
-
-        for (node in allNodes) {
-            if (!RunnerController.isRunning) return "stopped"
-
-            val desc = (node.contentDescription ?: node.text ?: "").toString().trim().lowercase()
-            val resId = node.viewIdResourceName.orEmpty()
-
-            if (desc.contains("đã thích") || desc.contains("da thich") || desc.contains("bỏ thích") || desc.contains("bo thich") ||
-                ((resId.endsWith(":id/g86") || resId.endsWith(":id/g8m")) && node.isSelected)
-            ) {
-                return "already"
-            }
-
-            if (desc == "thích" || desc == "thich" || desc == "thích video" || desc.contains("lượt thích") ||
-                desc == "like" || desc == "like video" ||
-                resId.endsWith(":id/g8m") || resId.endsWith(":id/g86")
-            ) {
-                if (clickNodeOrCoordinates(node)) {
-                    return "liked"
-                }
-            }
-        }
-        return "failed"
+    /** Chạm 1 lần tại tọa độ màn hình. */
+    fun tapAt(x: Int, y: Int, durationMs: Long = 50): Boolean {
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs))
+            .build()
+        return dispatchGesture(gesture, null, null)
     }
 
-    /**
-     * Tự động đóng các popup cấp quyền / đồng bộ danh bạ.
-     */
+    /** Chạm 2 lần liên tiếp (double-tap thả tim). */
+    fun doubleTapAt(x: Int, y: Int): Boolean {
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .addStroke(GestureDescription.StrokeDescription(path, 170, 50))
+            .build()
+        return dispatchGesture(gesture, null, null)
+    }
+
+    /** Tự động đóng popup cấp quyền / đồng bộ danh bạ (chỉ trong TikTok / Instagram). */
     fun dismissPopups(): Boolean {
         if (!RunnerController.isRunning) return false
-
-        val root = rootInActiveWindow ?: return false
-        val allNodes = ArrayList<AccessibilityNodeInfo>()
-        collectAllNodes(root, allNodes)
-
-        for (node in allNodes) {
-            val text = (node.text ?: node.contentDescription ?: "").toString().trim().lowercase()
-            if (POPUP_DISMISS_LABELS.contains(text)) {
-                clickNodeOrCoordinates(node)
-                return true
-            }
-        }
-        return false
+        val pt = UiXmlParser.findPopupDismissButton(snapshotNodes()) ?: return false
+        return tapAt(pt.x, pt.y)
     }
 
-    /**
-     * Mô phỏng người thật vuốt lướt feed chống ban.
-     */
+    /** Mô phỏng người thật vuốt lướt feed. */
     fun simulateHumanBrowse(times: Int, onComplete: () -> Unit) {
         if (times <= 0 || !RunnerController.isRunning) {
             onComplete()
@@ -178,6 +124,7 @@ class F4FAccessibilityService : AccessibilityService() {
         val startX = (screenWidth / 2).toFloat()
         val startY = (screenHeight * 0.75f)
         val endY = (screenHeight * 0.25f)
+        val handler = Handler(Looper.getMainLooper())
 
         fun doSwipe(remaining: Int) {
             if (remaining <= 0 || !RunnerController.isRunning) {
@@ -194,54 +141,20 @@ class F4FAccessibilityService : AccessibilityService() {
                 .addStroke(GestureDescription.StrokeDescription(path, 0, 280))
                 .build()
 
-            dispatchGesture(gesture, object : GestureResultCallback() {
+            val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        doSwipe(remaining - 1)
-                    }, 2500L)
+                    handler.postDelayed({ doSwipe(remaining - 1) }, 2500L)
+                }
+
+                // Trước đây thiếu onCancelled -> engine treo mãi khi cử chỉ bị hủy
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    handler.postDelayed({ doSwipe(remaining - 1) }, 1000L)
                 }
             }, null)
+
+            if (!dispatched) onComplete()
         }
 
         doSwipe(times)
-    }
-
-    private fun clickNodeOrCoordinates(node: AccessibilityNodeInfo): Boolean {
-        if (!RunnerController.isRunning) return false
-
-        if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-            return true
-        }
-
-        var parent = node.parent
-        while (parent != null) {
-            if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                return true
-            }
-            parent = parent.parent
-        }
-
-        val rect = Rect()
-        node.getBoundsInScreen(rect)
-        if (rect.width() > 0 && rect.height() > 0) {
-            val clickPath = Path().apply {
-                moveTo(rect.centerX().toFloat(), rect.centerY().toFloat())
-            }
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(clickPath, 0, 50))
-                .build()
-            dispatchGesture(gesture, null, null)
-            return true
-        }
-
-        return false
-    }
-
-    private fun collectAllNodes(node: AccessibilityNodeInfo?, list: MutableList<AccessibilityNodeInfo>) {
-        if (node == null) return
-        list.add(node)
-        for (i in 0 until node.childCount) {
-            collectAllNodes(node.getChild(i), list)
-        }
     }
 }

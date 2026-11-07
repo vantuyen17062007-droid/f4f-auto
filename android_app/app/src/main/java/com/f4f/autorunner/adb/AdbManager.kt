@@ -183,6 +183,7 @@ object AdbManager {
                 return false
             }
             val output = p.inputStream.bufferedReader().readLine()
+            p.destroy()
             output?.contains("uid=0") == true
         } catch (_: Exception) {
             false
@@ -286,9 +287,20 @@ object AdbManager {
         shell("input keyevent $keyCode")
     }
 
+    // Chỉ cho phép URL https của TikTok / Instagram với ký tự an toàn (không có ' " $ ` ; | khoảng trắng...)
+    private val SAFE_URL = Regex("^https://([a-z0-9-]+\\.)*(tiktok|instagram)\\.com/[A-Za-z0-9_@.\\-/?=&%]*$")
+    private val SAFE_PKG = Regex("^[A-Za-z0-9_.]+$")
+
+    fun isSafeTargetUrl(url: String): Boolean = url.length <= 500 && SAFE_URL.matches(url)
+
     suspend fun openUrl(url: String, packageName: String? = null) {
+        // URL đến từ server bên ngoài và được đưa vào shell (có thể là root) -> bắt buộc kiểm tra
+        require(isSafeTargetUrl(url)) { "URL không hợp lệ hoặc không an toàn" }
+        if (!packageName.isNullOrBlank()) {
+            require(SAFE_PKG.matches(packageName)) { "Tên package không hợp lệ" }
+        }
         val pkgArg = if (!packageName.isNullOrBlank()) " -p $packageName" else ""
-        shell("am start -a android.intent.action.VIEW -d \"$url\"$pkgArg")
+        shell("am start -a android.intent.action.VIEW -d '$url'$pkgArg")
     }
 
     suspend fun dumpUiXml(): String = withContext(Dispatchers.IO) {

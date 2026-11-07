@@ -1,9 +1,11 @@
 package com.f4f.autorunner
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
@@ -15,8 +17,10 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.f4f.autorunner.adb.AdbManager
 import com.f4f.autorunner.api.F4FApiClient
@@ -24,6 +28,7 @@ import com.f4f.autorunner.api.SocialAccount
 import com.f4f.autorunner.controller.LogLevel
 import com.f4f.autorunner.controller.RunnerController
 import com.f4f.autorunner.controller.RunnerState
+import com.f4f.autorunner.security.SecureStore
 import com.f4f.autorunner.service.FloatingWidgetService
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.*
@@ -115,9 +120,13 @@ class MainActivity : AppCompatActivity() {
     private var delayMin = 8
     private var delayMax = 18
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        requestNotificationPermissionIfNeeded()
 
         AdbManager.init(this)
         initViews()
@@ -276,14 +285,14 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_stepper_jobs_minus).setOnClickListener {
             if (maxJobs > 25) {
                 maxJobs -= 25
-                tvStepperJobsValue.text = maxJobs.toString()
+                tvStepperJobsValue.text = maxJobs.toString(); saveTaskPrefs()
             }
         }
 
         findViewById<View>(R.id.btn_stepper_jobs_plus).setOnClickListener {
             if (maxJobs < 1000) {
                 maxJobs += 25
-                tvStepperJobsValue.text = maxJobs.toString()
+                tvStepperJobsValue.text = maxJobs.toString(); saveTaskPrefs()
             }
         }
 
@@ -292,7 +301,7 @@ class MainActivity : AppCompatActivity() {
             if (delayMin > 4) {
                 delayMin -= 2
                 delayMax -= 2
-                tvStepperDelayValue.text = "$delayMin - $delayMax"
+                tvStepperDelayValue.text = "$delayMin - $delayMax"; saveTaskPrefs()
             }
         }
 
@@ -300,7 +309,7 @@ class MainActivity : AppCompatActivity() {
             if (delayMax < 40) {
                 delayMin += 2
                 delayMax += 2
-                tvStepperDelayValue.text = "$delayMin - $delayMax"
+                tvStepperDelayValue.text = "$delayMin - $delayMax"; saveTaskPrefs()
             }
         }
 
@@ -317,6 +326,7 @@ class MainActivity : AppCompatActivity() {
 
         // Save settings button
         findViewById<View>(R.id.btn_save_settings).setOnClickListener {
+            saveTaskPrefs()
             Toast.makeText(this, "✓ Đã lưu cấu hình chiến dịch thành công!", Toast.LENGTH_SHORT).show()
             bottomNav.selectedItemId = R.id.nav_dashboard
         }
@@ -406,7 +416,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         swTasksFloatingWidget.setOnClickListener {
-            if (swTasksFloatingWidget.isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            val wanted = swTasksFloatingWidget.isChecked
+            taskPrefs().edit().putBoolean(FloatingWidgetService.PREF_WIDGET_ENABLED, wanted).apply()
+            if (wanted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
                 swTasksFloatingWidget.isChecked = false
                 requestOverlayPermission()
             }
@@ -416,7 +428,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateOverlayPermissionUi() {
         val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
         swOverlayPermission.isChecked = hasOverlay
-        swTasksFloatingWidget.isChecked = hasOverlay
+        swTasksFloatingWidget.isChecked =
+            hasOverlay && taskPrefs().getBoolean(FloatingWidgetService.PREF_WIDGET_ENABLED, true)
 
         if (hasOverlay) {
             tvOverlayBadge.text = "ĐÃ BẬT"
@@ -579,6 +592,37 @@ class MainActivity : AppCompatActivity() {
         val jobTypes = listOf("Follow", "Like", "Tất cả (Follow & Like)")
         val jobAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, jobTypes)
         spJobType.adapter = jobAdapter
+        loadTaskPrefs()
+    }
+
+    private fun taskPrefs() = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
+
+    private fun saveTaskPrefs() {
+        taskPrefs().edit()
+            .putInt("task_max_jobs", maxJobs)
+            .putInt("task_delay_min", delayMin)
+            .putInt("task_delay_max", delayMax)
+            .putInt("task_job_type", spJobType.selectedItemPosition.coerceAtLeast(0))
+            .apply()
+    }
+
+    private fun loadTaskPrefs() {
+        val p = taskPrefs()
+        maxJobs = p.getInt("task_max_jobs", 100).coerceIn(25, 1000)
+        delayMin = p.getInt("task_delay_min", 8).coerceAtLeast(4)
+        delayMax = p.getInt("task_delay_max", 18).coerceAtLeast(delayMin)
+        tvStepperJobsValue.text = maxJobs.toString()
+        tvStepperDelayValue.text = "$delayMin - $delayMax"
+        spJobType.setSelection(p.getInt("task_job_type", 2).coerceIn(0, 2))
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private fun setupStateObservers() {
@@ -589,13 +633,13 @@ class MainActivity : AppCompatActivity() {
                     RunnerState.IDLE, RunnerState.STOPPED -> {
                         dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
                         tvHeroTitle.text = "Đang sẵn sàng"
-                        tvHeroSubtitle.text = "Nhấn START để bắt đầu auto qua ADB"
+                        tvHeroSubtitle.text = "Nhấn START để bắt đầu chạy auto"
                         btnDashStart.visibility = View.VISIBLE
                         boxRunningControls.visibility = View.GONE
                     }
                     RunnerState.RUNNING -> {
                         dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
-                        tvHeroTitle.text = "Đang chạy chiến dịch ADB"
+                        tvHeroTitle.text = "Đang chạy chiến dịch (${if (AdbManager.isConnected) "ADB" else "Trợ Năng"})"
                         tvHeroSubtitle.text = "Tự động tương tác và nhận xu..."
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
@@ -698,8 +742,19 @@ class MainActivity : AppCompatActivity() {
         val hasAccessibility = com.f4f.autorunner.service.F4FAccessibilityService.isRunning()
 
         if (!hasAdb && !hasAccessibility) {
-            Toast.makeText(this, "Vui lòng kết nối ADB hoặc bật Trợ Năng F4F trong Cài đặt để bắt đầu!", Toast.LENGTH_LONG).show()
-            bottomNav.selectedItemId = R.id.nav_settings
+            AlertDialog.Builder(this)
+                .setTitle("Chưa có chế độ điều khiển")
+                .setMessage("Cần bật dịch vụ Trợ Năng 'F4F Auto Runner' hoặc kết nối ADB để app tự bấm Follow/Like.")
+                .setPositiveButton("Mở cài đặt Trợ Năng") { _, _ ->
+                    try {
+                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Không thể mở cài đặt Trợ Năng: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNeutralButton("Cài đặt ADB") { _, _ -> bottomNav.selectedItemId = R.id.nav_settings }
+                .setNegativeButton("Hủy", null)
+                .show()
             return
         }
 
@@ -719,10 +774,20 @@ class MainActivity : AppCompatActivity() {
 
         // Start floating widget if overlay granted and switch is enabled
         val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
-        if (hasOverlay && swTasksFloatingWidget.isChecked) {
-            startService(Intent(this, FloatingWidgetService::class.java))
-        } else if (!hasOverlay && swTasksFloatingWidget.isChecked) {
+        // Luôn chạy foreground service để tiến trình không bị hệ thống kill khi app xuống nền;
+        // service tự quyết định có vẽ bong bóng nổi hay không.
+        try {
+            ContextCompat.startForegroundService(this, Intent(this, FloatingWidgetService::class.java))
+        } catch (_: Exception) {}
+        if (!hasOverlay && swTasksFloatingWidget.isChecked) {
             Toast.makeText(this, "Mẹo: Bạn có thể bật 'Hiển thị trên ứng dụng khác' trong Cài đặt để hiện cửa sổ nổi!", Toast.LENGTH_LONG).show()
+        }
+
+        saveTaskPrefs()
+        val selectedJobType = when (spJobType.selectedItemPosition) {
+            0 -> "follow"
+            1 -> "like"
+            else -> "all"
         }
 
         startTimeMs = System.currentTimeMillis()
@@ -733,6 +798,7 @@ class MainActivity : AppCompatActivity() {
             platform = selectedPlatform,
             accountId = selectedAccount.getId(),
             accountName = selectedAccount.getDisplayName(),
+            jobType = selectedJobType,
             maxJobs = maxJobs,
             delayMin = delayMin,
             delayMax = delayMax
@@ -769,12 +835,14 @@ class MainActivity : AppCompatActivity() {
                 val displayBalance = data.user.getDisplayBalance()
                 userBaseBalance = data.user.getNumericBalance()
 
-                getSharedPreferences("f4f_config", Context.MODE_PRIVATE).edit()
+                val editor = getSharedPreferences("f4f_config", Context.MODE_PRIVATE).edit()
                     .putString("f4f_user", user)
-                    .putString("f4f_pass", pass)
+                    .remove("f4f_pass") // xóa mật khẩu dạng văn bản thường của phiên bản cũ
                     .putString("f4f_balance", displayBalance)
                     .putInt("f4f_balance_num", userBaseBalance)
-                    .apply()
+                val encrypted = SecureStore.encryptOrNull(pass)
+                if (encrypted != null) editor.putString("f4f_pass_enc", encrypted) else editor.remove("f4f_pass_enc")
+                editor.apply()
 
                 tvSettingsUsername.text = data.user.username ?: user
                 tvSettingsUserid.text = "ID: ${data.user.id ?: "F4F"}"
@@ -810,7 +878,10 @@ class MainActivity : AppCompatActivity() {
     private fun loadSavedSession() {
         val prefs = getSharedPreferences("f4f_config", Context.MODE_PRIVATE)
         val user = prefs.getString("f4f_user", "") ?: ""
-        val pass = prefs.getString("f4f_pass", "") ?: ""
+        // Ưu tiên bản mã hóa; vẫn đọc được bản cũ (văn bản thường) để tự chuyển sang mã hóa khi đăng nhập
+        val legacyPass = prefs.getString("f4f_pass", null)
+        val pass = prefs.getString("f4f_pass_enc", null)?.let { SecureStore.decrypt(it) }
+            ?: legacyPass.orEmpty()
         val savedBal = prefs.getString("f4f_balance", "0 xu") ?: "0 xu"
         userBaseBalance = prefs.getInt("f4f_balance_num", 0)
 

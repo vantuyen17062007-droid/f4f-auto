@@ -119,7 +119,7 @@ object UiXmlParser {
      * Tìm trạng thái Follow và tọa độ nút bấm:
      * Trả về Pair(state: "followed" | "already" | "requested" | "failed", Point(cx, cy)?)
      */
-    fun findFollowButton(nodes: List<UiNode>): Pair<String, Point?> {
+    fun findFollowButton(nodes: List<UiNode>, requireClickable: Boolean = false): Pair<String, Point?> {
         // 1. Kiểm tra nút Instagram đặc trưng
         for (node in nodes) {
             if (node.resId.contains("profile_header_follow_button")) {
@@ -146,6 +146,9 @@ object UiXmlParser {
         for (node in nodes) {
             // Nút bấm thực tế trên TikTok luôn có chiều cao >= 50px và chiều rộng >= 60px
             if (node.height < 50 || node.width < 60) continue
+
+            // Chế độ Trợ Năng: chỉ nhận nút thật sự bấm được, tránh nhầm nhãn thống kê "Following"
+            if (requireClickable && !(node.clickable || node.className.contains("Button", ignoreCase = true))) continue
 
             // Bỏ qua các textview nhãn số liệu thống kê follower/following
             if (node.resId.endsWith(":id/t9q") || node.resId.endsWith(":id/t9r")) continue
@@ -221,7 +224,7 @@ object UiXmlParser {
     fun findPopupDismissButton(nodes: List<UiNode>): Point? {
         for (node in nodes) {
             val label = (node.text.ifEmpty { node.desc }).lowercase()
-            if (POPUP_DISMISS_LABELS.contains(label)) {
+            if (node.width > 0 && node.height > 0 && POPUP_DISMISS_LABELS.contains(label)) {
                 return Point(node.centerX, node.centerY)
             }
         }
