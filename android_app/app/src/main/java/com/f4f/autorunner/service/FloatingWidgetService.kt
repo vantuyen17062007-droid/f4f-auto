@@ -166,6 +166,10 @@ class FloatingWidgetService : Service() {
         val tvCoins = view.findViewById<TextView>(R.id.tv_floating_coins)
         val boxButtons = view.findViewById<View>(R.id.box_floating_buttons)
 
+        val tvFloatingPlatform = view.findViewById<TextView>(R.id.tv_floating_platform)
+        val tvFloatingAccount = view.findViewById<TextView>(R.id.tv_floating_account)
+        val tvFloatingJobInfo = view.findViewById<TextView>(R.id.tv_floating_job_info)
+
         btnResume?.setOnClickListener { RunnerController.resume() }
         btnPause?.setOnClickListener { RunnerController.pause() }
         btnStop?.setOnClickListener {
@@ -180,6 +184,25 @@ class FloatingWidgetService : Service() {
 
         // Đóng bong bóng nhưng KHÔNG dừng phiên chạy (service vẫn giữ tiến trình sống)
         btnClose?.setOnClickListener { removeOverlay() }
+
+        // Lắng nghe tài khoản & công việc đang chạy
+        serviceScope.launch {
+            RunnerController.currentAccount.collectLatest { acc ->
+                tvFloatingAccount?.text = if (acc.isNotBlank()) "@$acc" else "Chưa chọn nick"
+            }
+        }
+
+        serviceScope.launch {
+            RunnerController.currentPlatform.collectLatest { plat ->
+                tvFloatingPlatform?.text = if (plat == "instagram") "Instagram" else "TikTok"
+            }
+        }
+
+        serviceScope.launch {
+            RunnerController.currentJobInfo.collectLatest { info ->
+                tvFloatingJobInfo?.text = info
+            }
+        }
 
         serviceScope.launch {
             RunnerController.state.collectLatest { state ->

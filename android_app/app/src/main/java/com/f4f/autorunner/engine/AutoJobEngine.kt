@@ -254,6 +254,7 @@ class AutoJobEngine(
                     // Mô phỏng lướt feed chống checkpoint
                     if (antiBanEveryNJobs > 0 && jobsSinceHuman >= antiBanEveryNJobs) {
                         onLog(LogLevel.INFO, "[Anti-Ban] Lướt feed $antiBanScrollTimes lần mô phỏng người thật...")
+                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("🛡️ [Anti-Ban] Đang lướt feed...")
                         triggerAntiBan()
                         jobsSinceHuman = 0
                     }
@@ -264,6 +265,7 @@ class AutoJobEngine(
                         val maxD = delayMax.coerceAtLeast(minD)
                         val sleepSec = if (minD == maxD) minD else Random.nextInt(minD, maxD + 1)
                         onLog(LogLevel.INFO, "Nghỉ an toàn ${sleepSec}s trước nhiệm vụ tiếp theo...")
+                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("⏳ Chờ ${sleepSec}s trước job tiếp theo...")
                         cancellableDelay(sleepSec)
                     }
                 }
@@ -271,19 +273,23 @@ class AutoJobEngine(
 
             if (!jobsFoundInRound && totalProcessed < maxJobs && checkCanProceed()) {
                 onLog(LogLevel.WARN, "Chưa có job mới khả dụng. Tự động chờ 20s quét lại...")
+                com.f4f.autorunner.controller.RunnerController.updateJobInfo("🔍 Chưa có job mới. Chờ 20s quét lại...")
                 cancellableDelay(20)
             }
         }
 
         if (totalProcessed >= maxJobs) {
             onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
+            com.f4f.autorunner.controller.RunnerController.updateJobInfo("🎉 Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs jobs)")
         }
     }
 
     private suspend fun processJob(job: F4FJob): String {
         val target = job.link ?: job.originalLink ?: job.objectId ?: ""
         val reward = job.getRewardInt()
-        onLog(LogLevel.INFO, "Job #${job.id} [${job.typeJob.uppercase()}] | @$target | +$reward xu")
+        val jobDesc = "[${job.typeJob.uppercase()}] @${target.removePrefix("@")} (+$reward xu)"
+        onLog(LogLevel.INFO, "Job #${job.id} $jobDesc")
+        com.f4f.autorunner.controller.RunnerController.updateJobInfo("🎯 $jobDesc")
 
         if (!checkCanProceed()) return "stopped"
 
@@ -342,7 +348,7 @@ class AutoJobEngine(
         if (!checkCanProceed()) return "stopped"
 
         // 3. Xử lý kết quả & báo cáo API (chỉ báo hoàn thành khi đã xác minh)
-        return when (state) {
+        val finalStatus = when (state) {
             "already" -> {
                 onLog(LogLevel.INFO, "Đã thực hiện từ trước -> Nhận thưởng...")
                 stats.already++
@@ -379,6 +385,13 @@ class AutoJobEngine(
                 "skipped"
             }
         }
+
+        // Nếu là job FOLLOW thì BACK về trang chủ, còn LIKE thì KHÔNG back
+        if (job.typeJob == "follow" && checkCanProceed()) {
+            navigateBackHome()
+        }
+
+        return finalStatus
     }
 
     private suspend fun reportComplete(job: F4FJob) {
@@ -467,6 +480,22 @@ class AutoJobEngine(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (_: Exception) {}
+    }
+
+    private suspend fun navigateBackHome() {
+        try {
+            delay(600)
+            if (AdbManager.isConnected) {
+                // Nhấn Back 2 lần để thoát trang cá nhân trở về trang chủ TikTok/Instagram
+                AdbManager.keyevent(4)
+                delay(400)
+                AdbManager.keyevent(4)
+            } else if (F4FAccessibilityService.isRunning()) {
+                F4FAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+                delay(400)
+                F4FAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+            }
         } catch (_: Exception) {}
     }
 }

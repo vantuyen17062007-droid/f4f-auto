@@ -44,6 +44,20 @@ object RunnerController {
     )
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
+    // Thông tin hiển thị trực tiếp lên Cửa sổ nổi (Floating Widget)
+    private val _currentAccount = MutableStateFlow("")
+    val currentAccount: StateFlow<String> = _currentAccount.asStateFlow()
+
+    private val _currentPlatform = MutableStateFlow("tiktok")
+    val currentPlatform: StateFlow<String> = _currentPlatform.asStateFlow()
+
+    private val _currentJobInfo = MutableStateFlow("Sẵn sàng bắt đầu")
+    val currentJobInfo: StateFlow<String> = _currentJobInfo.asStateFlow()
+
+    fun updateJobInfo(info: String) {
+        _currentJobInfo.value = info
+    }
+
     private var activeEngine: AutoJobEngine? = null
 
     val isRunning: Boolean
@@ -77,6 +91,9 @@ object RunnerController {
 
         _state.value = RunnerState.RUNNING
         _stats.value = RunnerStats()
+        _currentAccount.value = accountName
+        _currentPlatform.value = platform
+        _currentJobInfo.value = "Đang khởi động @$accountName..."
         addLog(LogLevel.INFO, "Khởi động chiến dịch [$platform] cho @$accountName...")
 
         val appContext = context.applicationContext
@@ -113,6 +130,7 @@ object RunnerController {
         if (_state.value == RunnerState.RUNNING) {
             _state.value = RunnerState.PAUSED
             activeEngine?.pause()
+            _currentJobInfo.value = "⏸ Đang tạm dừng..."
             addLog(LogLevel.WARN, "Đã tạm dừng (PAUSED). Nhấn Tiếp tục để chạy lại.")
         }
     }
@@ -122,6 +140,7 @@ object RunnerController {
         if (_state.value == RunnerState.PAUSED) {
             _state.value = RunnerState.RUNNING
             activeEngine?.resume()
+            _currentJobInfo.value = "▶ Đã tiếp tục..."
             addLog(LogLevel.INFO, "Đã tiếp tục phiên chạy (RESUMED).")
         }
     }
@@ -132,6 +151,7 @@ object RunnerController {
             _state.value = RunnerState.STOPPED
             activeEngine?.stop()
             activeEngine = null
+            _currentJobInfo.value = "⏹ Đã dừng phiên chạy."
             addLog(LogLevel.WARN, "Đã dừng phiên chạy khẩn cấp (STOPPED).")
         }
     }

@@ -38,6 +38,9 @@ class MainActivity : AppCompatActivity() {
 
     private val apiClient = F4FApiClient()
     private var accounts: List<SocialAccount> = emptyList()
+    private var tiktokAccounts: List<SocialAccount> = emptyList()
+    private var instagramAccounts: List<SocialAccount> = emptyList()
+    private var isRestoringSpinnerSelection = false
     private var selectedPlatform = "tiktok"
     private var activeLogFilter: LogLevel? = null
     private var startTimeMs: Long = 0
@@ -56,6 +59,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvHeroSubtitle: TextView
     private lateinit var tvDashBalance: TextView
     private lateinit var tvDashAdbBadge: TextView
+    private lateinit var cardStatusTiktok: View
+    private lateinit var cardStatusInstagram: View
     private lateinit var tvTiktokConnStatus: TextView
     private lateinit var ivTiktokConnIcon: ImageView
     private lateinit var tvInstagramConnStatus: TextView
@@ -158,6 +163,8 @@ class MainActivity : AppCompatActivity() {
         tvHeroSubtitle = findViewById(R.id.tv_hero_subtitle)
         tvDashBalance = findViewById(R.id.tv_dash_balance)
         tvDashAdbBadge = findViewById(R.id.tv_dash_adb_badge)
+        cardStatusTiktok = findViewById(R.id.card_status_tiktok)
+        cardStatusInstagram = findViewById(R.id.card_status_instagram)
         tvTiktokConnStatus = findViewById(R.id.tv_tiktok_conn_status)
         ivTiktokConnIcon = findViewById(R.id.iv_tiktok_conn_icon)
         tvInstagramConnStatus = findViewById(R.id.tv_instagram_conn_status)
@@ -272,6 +279,19 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
+        // Direct platform selection from Dashboard
+        cardStatusTiktok.setOnClickListener {
+            setPlatformSelection("tiktok")
+            val savedName = taskPrefs().getString("saved_tiktok_acc_name", "")
+            Toast.makeText(this, "Đã chọn TikTok${if (!savedName.isNullOrBlank()) " (@$savedName)" else ""}", Toast.LENGTH_SHORT).show()
+        }
+
+        cardStatusInstagram.setOnClickListener {
+            setPlatformSelection("instagram")
+            val savedName = taskPrefs().getString("saved_ig_acc_name", "")
+            Toast.makeText(this, "Đã chọn Instagram${if (!savedName.isNullOrBlank()) " (@$savedName)" else ""}", Toast.LENGTH_SHORT).show()
+        }
+
         // Platform segment toggles
         btnSegmentTiktok.setOnClickListener {
             setPlatformSelection("tiktok")
@@ -279,6 +299,29 @@ class MainActivity : AppCompatActivity() {
 
         btnSegmentInstagram.setOnClickListener {
             setPlatformSelection("instagram")
+        }
+
+        // Accounts spinner item selection listener
+        spAccounts.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (!isRestoringSpinnerSelection && accounts.isNotEmpty() && position in accounts.indices) {
+                    val acc = accounts[position]
+                    val editor = taskPrefs().edit()
+                    if (selectedPlatform == "tiktok") {
+                        editor.putString("saved_tiktok_acc_id", acc.getId())
+                        editor.putString("saved_tiktok_acc_name", acc.getDisplayName())
+                        tvTiktokConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
+                    } else {
+                        editor.putString("saved_ig_acc_id", acc.getId())
+                        editor.putString("saved_ig_acc_name", acc.getDisplayName())
+                        tvInstagramConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
+                    }
+                    editor.apply()
+                    updatePlatformSelectionUi()
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         // Steppers: Jobs
@@ -327,7 +370,26 @@ class MainActivity : AppCompatActivity() {
         // Save settings button
         findViewById<View>(R.id.btn_save_settings).setOnClickListener {
             saveTaskPrefs()
-            Toast.makeText(this, "✓ Đã lưu cấu hình chiến dịch thành công!", Toast.LENGTH_SHORT).show()
+            val selectedIdx = spAccounts.selectedItemPosition
+            if (accounts.isNotEmpty() && selectedIdx in accounts.indices) {
+                val acc = accounts[selectedIdx]
+                val editor = taskPrefs().edit()
+                if (selectedPlatform == "tiktok") {
+                    editor.putString("saved_tiktok_acc_id", acc.getId())
+                    editor.putString("saved_tiktok_acc_name", acc.getDisplayName())
+                    tvTiktokConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
+                } else {
+                    editor.putString("saved_ig_acc_id", acc.getId())
+                    editor.putString("saved_ig_acc_name", acc.getDisplayName())
+                    tvInstagramConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
+                }
+                editor.apply()
+                updatePlatformSelectionUi()
+            }
+            val curAcc = if (accounts.isNotEmpty() && selectedIdx in accounts.indices) {
+                "@${accounts[selectedIdx].getDisplayName()}"
+            } else ""
+            Toast.makeText(this, "✓ Đã lưu cài đặt cho $curAcc thành công!", Toast.LENGTH_SHORT).show()
             bottomNav.selectedItemId = R.id.nav_dashboard
         }
 
@@ -525,6 +587,63 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updatePlatformSelectionUi() {
+        val prefs = taskPrefs()
+        if (selectedPlatform == "tiktok") {
+            cardStatusTiktok.setBackgroundResource(R.drawable.bg_card_selected)
+            cardStatusInstagram.setBackgroundResource(R.drawable.bg_card_premium)
+            btnSegmentTiktok.setBackgroundResource(R.drawable.bg_pill_active)
+            btnSegmentInstagram.background = null
+
+            val savedName = prefs.getString("saved_tiktok_acc_name", "")
+            val accLabel = if (!savedName.isNullOrBlank()) " (@$savedName)" else ""
+            btnDashStart.text = "▶  BẮT ĐẦU TIKTOK$accLabel"
+        } else {
+            cardStatusInstagram.setBackgroundResource(R.drawable.bg_card_selected)
+            cardStatusTiktok.setBackgroundResource(R.drawable.bg_card_premium)
+            btnSegmentInstagram.setBackgroundResource(R.drawable.bg_pill_active)
+            btnSegmentTiktok.background = null
+
+            val savedName = prefs.getString("saved_ig_acc_name", "")
+            val accLabel = if (!savedName.isNullOrBlank()) " (@$savedName)" else ""
+            btnDashStart.text = "▶  BẮT ĐẦU INSTAGRAM$accLabel"
+        }
+    }
+
+    private fun updateActiveAccountsSpinner() {
+        val currentList = if (selectedPlatform == "tiktok") tiktokAccounts else instagramAccounts
+        accounts = currentList
+
+        if (currentList.isEmpty()) {
+            val names = listOf("(Chưa có nick $selectedPlatform nào)")
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
+            spAccounts.adapter = adapter
+            return
+        }
+
+        val names = currentList.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
+        isRestoringSpinnerSelection = true
+        spAccounts.adapter = adapter
+
+        val savedId = if (selectedPlatform == "tiktok") {
+            taskPrefs().getString("saved_tiktok_acc_id", "")
+        } else {
+            taskPrefs().getString("saved_ig_acc_id", "")
+        }
+
+        val targetIdx = currentList.indexOfFirst { it.getId() == savedId }.coerceAtLeast(0)
+        spAccounts.setSelection(targetIdx)
+        isRestoringSpinnerSelection = false
+    }
+
+    private fun setPlatformSelection(plat: String) {
+        selectedPlatform = plat
+        taskPrefs().edit().putString("saved_platform", plat).apply()
+        updatePlatformSelectionUi()
+        updateActiveAccountsSpinner()
+    }
+
     private fun checkPlatformAccountsHealth() {
         lifecycleScope.launch {
             if (apiClient.token == null) {
@@ -537,54 +656,56 @@ class MainActivity : AppCompatActivity() {
                 tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
                 ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
                 ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                updatePlatformSelectionUi()
                 return@launch
             }
 
-            // Kiểm tra TikTok
-            try {
-                val ttAccs = apiClient.getAccounts("tiktok")
-                if (ttAccs.isNotEmpty()) {
-                    tvTiktokConnStatus.text = "Đã kết nối (@${ttAccs[0].getDisplayName()})"
-                    tvTiktokConnStatus.setTextColor(Color.parseColor("#10B981"))
-                    ivTiktokConnIcon.setImageResource(R.drawable.ic_check_circle)
-                    ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
-                } else {
-                    tvTiktokConnStatus.text = "Chưa kết nối"
-                    tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
-                    ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
-                    ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
-                }
-            } catch (_: Exception) {}
+            // Lấy danh sách tài khoản TikTok & Instagram
+            val ttAccs = try { apiClient.getAccounts("tiktok") } catch (_: Exception) { emptyList() }
+            val igAccs = try { apiClient.getAccounts("instagram") } catch (_: Exception) { emptyList() }
+            tiktokAccounts = ttAccs
+            instagramAccounts = igAccs
 
-            // Kiểm tra Instagram
-            try {
-                val igAccs = apiClient.getAccounts("instagram")
-                if (igAccs.isNotEmpty()) {
-                    tvInstagramConnStatus.text = "Đã kết nối (@${igAccs[0].getDisplayName()})"
-                    tvInstagramConnStatus.setTextColor(Color.parseColor("#10B981"))
-                    ivInstagramConnIcon.setImageResource(R.drawable.ic_check_circle)
-                    ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
-                } else {
-                    tvInstagramConnStatus.text = "Chưa kết nối"
-                    tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
-                    ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
-                    ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
-                }
-            } catch (_: Exception) {}
-        }
-    }
+            val prefs = taskPrefs()
+            val editor = prefs.edit()
 
-    private fun setPlatformSelection(plat: String) {
-        selectedPlatform = plat
-        if (plat == "tiktok") {
-            btnSegmentTiktok.setBackgroundResource(R.drawable.bg_pill_active)
-            btnSegmentInstagram.background = null
-        } else {
-            btnSegmentInstagram.setBackgroundResource(R.drawable.bg_pill_active)
-            btnSegmentTiktok.background = null
-        }
-        lifecycleScope.launch {
-            loadAccounts()
+            // TikTok
+            if (ttAccs.isNotEmpty()) {
+                val savedTtId = prefs.getString("saved_tiktok_acc_id", "")
+                val matchedTt = ttAccs.find { it.getId() == savedTtId } ?: ttAccs[0]
+                editor.putString("saved_tiktok_acc_id", matchedTt.getId())
+                editor.putString("saved_tiktok_acc_name", matchedTt.getDisplayName())
+                tvTiktokConnStatus.text = "Đã kết nối (@${matchedTt.getDisplayName()})"
+                tvTiktokConnStatus.setTextColor(Color.parseColor("#10B981"))
+                ivTiktokConnIcon.setImageResource(R.drawable.ic_check_circle)
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+            } else {
+                tvTiktokConnStatus.text = "Chưa kết nối"
+                tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+            }
+
+            // Instagram
+            if (igAccs.isNotEmpty()) {
+                val savedIgId = prefs.getString("saved_ig_acc_id", "")
+                val matchedIg = igAccs.find { it.getId() == savedIgId } ?: igAccs[0]
+                editor.putString("saved_ig_acc_id", matchedIg.getId())
+                editor.putString("saved_ig_acc_name", matchedIg.getDisplayName())
+                tvInstagramConnStatus.text = "Đã kết nối (@${matchedIg.getDisplayName()})"
+                tvInstagramConnStatus.setTextColor(Color.parseColor("#10B981"))
+                ivInstagramConnIcon.setImageResource(R.drawable.ic_check_circle)
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+            } else {
+                tvInstagramConnStatus.text = "Chưa kết nối"
+                tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+            }
+            editor.apply()
+
+            updatePlatformSelectionUi()
+            updateActiveAccountsSpinner()
         }
     }
 
@@ -763,14 +884,22 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (accounts.isEmpty()) {
-            Toast.makeText(this, "Chưa chọn tài khoản MXH nào!", Toast.LENGTH_SHORT).show()
+        val currentList = if (selectedPlatform == "tiktok") tiktokAccounts else instagramAccounts
+        if (currentList.isEmpty()) {
+            Toast.makeText(this, "Chưa có tài khoản $selectedPlatform nào trên F4F!", Toast.LENGTH_SHORT).show()
             bottomNav.selectedItemId = R.id.nav_tasks
             return
         }
 
-        val selectedIdx = spAccounts.selectedItemPosition.coerceAtLeast(0)
-        val selectedAccount = accounts.getOrNull(selectedIdx) ?: accounts[0]
+        val savedId = if (selectedPlatform == "tiktok") {
+            taskPrefs().getString("saved_tiktok_acc_id", "")
+        } else {
+            taskPrefs().getString("saved_ig_acc_id", "")
+        }
+
+        val selectedAccount = currentList.find { it.getId() == savedId }
+            ?: currentList.getOrNull(spAccounts.selectedItemPosition.coerceAtLeast(0))
+            ?: currentList[0]
 
         // Start floating widget if overlay granted and switch is enabled
         val hasOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
@@ -851,7 +980,6 @@ class MainActivity : AppCompatActivity() {
 
                 RunnerController.addLog(LogLevel.SUCCESS, "Đăng nhập thành công: @${data.user.username} | $displayBalance")
                 checkPlatformAccountsHealth()
-                loadAccounts()
             } catch (e: Exception) {
                 RunnerController.addLog(LogLevel.ERROR, "Đăng nhập thất bại: ${e.message}")
                 Toast.makeText(this@MainActivity, "Lỗi đăng nhập: ${e.message}", Toast.LENGTH_LONG).show()
@@ -860,19 +988,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun loadAccounts() {
-        try {
-            accounts = apiClient.getAccounts(selectedPlatform)
-            val names = if (accounts.isEmpty()) {
-                listOf("(Chưa có nick $selectedPlatform nào)")
-            } else {
-                accounts.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
-            }
-            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
-            spAccounts.adapter = adapter
-            RunnerController.addLog(LogLevel.INFO, "Đã tải ${accounts.size} nick [$selectedPlatform] từ F4F.")
-        } catch (e: Exception) {
-            RunnerController.addLog(LogLevel.ERROR, "Lỗi tải nick: ${e.message}")
-        }
+        checkPlatformAccountsHealth()
     }
 
     private fun loadSavedSession() {
@@ -884,6 +1000,9 @@ class MainActivity : AppCompatActivity() {
             ?: legacyPass.orEmpty()
         val savedBal = prefs.getString("f4f_balance", "0 xu") ?: "0 xu"
         userBaseBalance = prefs.getInt("f4f_balance_num", 0)
+
+        selectedPlatform = prefs.getString("saved_platform", "tiktok") ?: "tiktok"
+        updatePlatformSelectionUi()
 
         tvSettingsBalance.text = "🪙 Số dư: $savedBal"
         tvDashBalance.text = "🪙 Số dư F4F: $savedBal"
