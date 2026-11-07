@@ -308,11 +308,11 @@ class MainActivity : AppCompatActivity() {
                     val acc = accounts[position]
                     val editor = taskPrefs().edit()
                     if (selectedPlatform == "tiktok") {
-                        editor.putString("saved_tiktok_acc_id", acc.getId())
+                        editor.putLong("saved_tiktok_acc_id", acc.getId())
                         editor.putString("saved_tiktok_acc_name", acc.getDisplayName())
                         tvTiktokConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
                     } else {
-                        editor.putString("saved_ig_acc_id", acc.getId())
+                        editor.putLong("saved_ig_acc_id", acc.getId())
                         editor.putString("saved_ig_acc_name", acc.getDisplayName())
                         tvInstagramConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
                     }
@@ -375,11 +375,11 @@ class MainActivity : AppCompatActivity() {
                 val acc = accounts[selectedIdx]
                 val editor = taskPrefs().edit()
                 if (selectedPlatform == "tiktok") {
-                    editor.putString("saved_tiktok_acc_id", acc.getId())
+                    editor.putLong("saved_tiktok_acc_id", acc.getId())
                     editor.putString("saved_tiktok_acc_name", acc.getDisplayName())
                     tvTiktokConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
                 } else {
-                    editor.putString("saved_ig_acc_id", acc.getId())
+                    editor.putLong("saved_ig_acc_id", acc.getId())
                     editor.putString("saved_ig_acc_name", acc.getDisplayName())
                     tvInstagramConnStatus.text = "Đã kết nối (@${acc.getDisplayName()})"
                 }
@@ -627,9 +627,9 @@ class MainActivity : AppCompatActivity() {
         spAccounts.adapter = adapter
 
         val savedId = if (selectedPlatform == "tiktok") {
-            taskPrefs().getString("saved_tiktok_acc_id", "")
+            taskPrefs().getLong("saved_tiktok_acc_id", 0L)
         } else {
-            taskPrefs().getString("saved_ig_acc_id", "")
+            taskPrefs().getLong("saved_ig_acc_id", 0L)
         }
 
         val targetIdx = currentList.indexOfFirst { it.getId() == savedId }.coerceAtLeast(0)
@@ -671,9 +671,9 @@ class MainActivity : AppCompatActivity() {
 
             // TikTok
             if (ttAccs.isNotEmpty()) {
-                val savedTtId = prefs.getString("saved_tiktok_acc_id", "")
+                val savedTtId = prefs.getLong("saved_tiktok_acc_id", 0L)
                 val matchedTt = ttAccs.find { it.getId() == savedTtId } ?: ttAccs[0]
-                editor.putString("saved_tiktok_acc_id", matchedTt.getId())
+                editor.putLong("saved_tiktok_acc_id", matchedTt.getId())
                 editor.putString("saved_tiktok_acc_name", matchedTt.getDisplayName())
                 tvTiktokConnStatus.text = "Đã kết nối (@${matchedTt.getDisplayName()})"
                 tvTiktokConnStatus.setTextColor(Color.parseColor("#10B981"))
@@ -688,9 +688,9 @@ class MainActivity : AppCompatActivity() {
 
             // Instagram
             if (igAccs.isNotEmpty()) {
-                val savedIgId = prefs.getString("saved_ig_acc_id", "")
+                val savedIgId = prefs.getLong("saved_ig_acc_id", 0L)
                 val matchedIg = igAccs.find { it.getId() == savedIgId } ?: igAccs[0]
-                editor.putString("saved_ig_acc_id", matchedIg.getId())
+                editor.putLong("saved_ig_acc_id", matchedIg.getId())
                 editor.putString("saved_ig_acc_name", matchedIg.getDisplayName())
                 tvInstagramConnStatus.text = "Đã kết nối (@${matchedIg.getDisplayName()})"
                 tvInstagramConnStatus.setTextColor(Color.parseColor("#10B981"))
@@ -892,9 +892,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val savedId = if (selectedPlatform == "tiktok") {
-            taskPrefs().getString("saved_tiktok_acc_id", "")
+            taskPrefs().getLong("saved_tiktok_acc_id", 0L)
         } else {
-            taskPrefs().getString("saved_ig_acc_id", "")
+            taskPrefs().getLong("saved_ig_acc_id", 0L)
         }
 
         val selectedAccount = currentList.find { it.getId() == savedId }
