@@ -3,19 +3,9 @@
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="22dp" />
-            <gradient
-                android:angle="315"
-                android:startColor="#0D1524"
-                android:centerColor="#14213B"
-                android:endColor="#080C14" />
-            <stroke android:width="2dp" android:color="#00E5FF" />
+            <solid android:color="#0E2F27" />
         </shape>
     </item>
-    <item
-        android:drawable="@drawable/ic_launcher_foreground"
-        android:gravity="center"
-        android:top="8dp"
-        android:bottom="8dp"
-        android:left="8dp"
-        android:right="8dp" />
+    <item android:drawable="@drawable/ic_launcher_foreground"
+        android:gravity="center" android:top="8dp" android:bottom="8dp" android:left="8dp" android:right="8dp" />
 </layer-list>

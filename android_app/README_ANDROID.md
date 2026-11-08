@@ -72,3 +72,8 @@ File APK sẽ xuất hiện tại:
    - App sẽ tự động mở trang cá nhân / video và tự bấm Follow / Like.
    - Bong bóng nổi trên màn hình sẽ liên tục cập nhật số xu kiếm được trong thời gian thực.
    - Bấm vào bong bóng nổi hoặc quay lại app bấm **DỪNG LẠI** bất kỳ lúc nào để kết thúc phiên.
+
+## Giao diện (thiết kế lại)
+- Nền xanh lục đậm, điểm nhấn vàng đồng xu; màu khai báo tập trung trong `res/values/colors.xml`, kiểu chữ/nút trong `res/values/themes.xml`.
+- Font: **Be Vietnam Pro** (SIL OFL 1.1, giấy phép ở `licenses/BeVietnamPro-OFL.txt`), đặt trong `res/font/`.
+- Trạng thái chọn (nền tảng, bộ lọc nhật ký) dùng `isSelected` + selector, không đổi background bằng code.

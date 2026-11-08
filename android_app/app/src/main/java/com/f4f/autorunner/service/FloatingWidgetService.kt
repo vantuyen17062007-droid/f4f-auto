@@ -17,6 +17,7 @@ import android.provider.Settings
 import android.view.*
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.f4f.autorunner.MainActivity
 import com.f4f.autorunner.R
 import com.f4f.autorunner.controller.RunnerController
@@ -207,11 +208,11 @@ class FloatingWidgetService : Service() {
         serviceScope.launch {
             RunnerController.state.collectLatest { state ->
                 val color = when (state) {
-                    RunnerState.RUNNING -> "#10B981"
-                    RunnerState.PAUSED -> "#F59E0B"
-                    RunnerState.STOPPED, RunnerState.IDLE -> "#EF4444"
+                    RunnerState.RUNNING -> R.color.status_ok
+                    RunnerState.PAUSED -> R.color.status_warn
+                    RunnerState.STOPPED, RunnerState.IDLE -> R.color.status_error
                 }
-                dotIndicator?.backgroundTintList = ColorStateList.valueOf(Color.parseColor(color))
+                dotIndicator?.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this@FloatingWidgetService, color))
             }
         }
 
@@ -221,7 +222,7 @@ class FloatingWidgetService : Service() {
                 val failed = stats.skipped + stats.errors
                 tvSuccess?.text = "$completed Thành công"
                 tvFailed?.text = "$failed Thất bại"
-                tvCoins?.text = "🪙 +${stats.coinsEarned} xu"
+                tvCoins?.text = "+${stats.coinsEarned} xu"
             }
         }
 

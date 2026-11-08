@@ -3,40 +3,49 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:paddingStart="24dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="4dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Nhập tài khoản Follow4Follow để đồng bộ danh sách nick và nhận coin tự động:"
-        android:textColor="#94A3B8"
-        android:textSize="13sp" />
+        android:lineSpacingExtra="2dp"
+        android:text="Đăng nhập tài khoản Follow4Follow để đồng bộ danh sách nick và nhận xu."
+        android:textColor="@color/text_sub"
+        android:textSize="13.5sp" />
 
     <EditText
         android:id="@+id/dialog_et_user"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="12dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="16dp"
         android:background="@drawable/bg_input_field"
-        android:hint="Tên đăng nhập hoặc Email"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#64748B"
+        android:hint="Tên đăng nhập hoặc email"
+        android:importantForAutofill="no"
+        android:inputType="textEmailAddress"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_muted"
         android:textSize="14sp" />
 
     <EditText
         android:id="@+id/dialog_et_pass"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_field"
         android:hint="Mật khẩu"
+        android:importantForAutofill="no"
         android:inputType="textPassword"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#64748B"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_muted"
         android:textSize="14sp" />
 
 </LinearLayout>

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -15,6 +16,8 @@ import android.provider.Settings
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +34,7 @@ import com.f4f.autorunner.controller.RunnerState
 import com.f4f.autorunner.security.SecureStore
 import com.f4f.autorunner.service.FloatingWidgetService
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 
@@ -72,7 +76,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDashStatTotal: TextView
     private lateinit var btnDashStart: Button
     private lateinit var boxRunningControls: View
-    private lateinit var btnDashPause: Button
+    private lateinit var btnDashPause: MaterialButton
+    private lateinit var progressSession: ProgressBar
+    private lateinit var tvDashProgress: TextView
     private lateinit var btnDashStop: Button
 
     // Tasks Views
@@ -82,8 +88,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var spJobType: Spinner
     private lateinit var tvStepperJobsValue: TextView
     private lateinit var tvStepperDelayValue: TextView
-    private lateinit var boxAdvancedOptions: View
-    private lateinit var ivAdvancedArrow: TextView
 
     // Logs Views
     private lateinit var tvTerminalLogs: TextView
@@ -101,12 +105,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnLogout: Button
 
     // ADB Views in Settings
-    private lateinit var boxAdbStatusDisconnected: View
-    private lateinit var boxAdbStatusConnected: View
-    private lateinit var tvAdbStatusDisconnectedTitle: TextView
-    private lateinit var tvAdbStatusDisconnectedSub: TextView
-    private lateinit var tvAdbStatusConnectedTitle: TextView
-    private lateinit var tvAdbStatusConnectedSub: TextView
+    private lateinit var dotAdbStatus: TextView
+    private lateinit var tvAdbStatusTitle: TextView
+    private lateinit var tvAdbStatusSub: TextView
     private lateinit var etAdbHost: EditText
     private lateinit var etAdbPort: EditText
     private lateinit var btnAdbConnect: Button
@@ -114,6 +115,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAdbGuide: TextView
 
     // Overlay Views
+    private lateinit var cardAccessibility: View
+    private lateinit var tvAccessibilityBadge: TextView
+    private lateinit var tvAccessibilityDesc: TextView
+    private lateinit var tvAppVersion: TextView
     private lateinit var cardOverlayPermission: View
     private lateinit var tvOverlayStatusDesc: TextView
     private lateinit var tvOverlayBadge: TextView
@@ -147,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updateAdbUiState()
         updateOverlayPermissionUi()
+        updateAccessibilityUi()
         checkPlatformAccountsHealth()
     }
 
@@ -178,6 +184,8 @@ class MainActivity : AppCompatActivity() {
         boxRunningControls = findViewById(R.id.box_running_controls)
         btnDashPause = findViewById(R.id.btn_dash_pause)
         btnDashStop = findViewById(R.id.btn_dash_stop)
+        progressSession = findViewById(R.id.progress_session)
+        tvDashProgress = findViewById(R.id.tv_dash_progress)
 
         // Tasks
         btnSegmentTiktok = findViewById(R.id.btn_segment_tiktok)
@@ -186,8 +194,6 @@ class MainActivity : AppCompatActivity() {
         spJobType = findViewById(R.id.sp_job_type)
         tvStepperJobsValue = findViewById(R.id.tv_stepper_jobs_value)
         tvStepperDelayValue = findViewById(R.id.tv_stepper_delay_value)
-        boxAdvancedOptions = findViewById(R.id.box_advanced_options)
-        ivAdvancedArrow = findViewById(R.id.iv_advanced_arrow)
 
         // Logs
         tvTerminalLogs = findViewById(R.id.tv_terminal_logs)
@@ -205,12 +211,9 @@ class MainActivity : AppCompatActivity() {
         btnLogout = findViewById(R.id.btn_logout)
 
         // Settings ADB
-        boxAdbStatusDisconnected = findViewById(R.id.box_adb_status_disconnected)
-        boxAdbStatusConnected = findViewById(R.id.box_adb_status_connected)
-        tvAdbStatusDisconnectedTitle = findViewById(R.id.tv_adb_status_disconnected_title)
-        tvAdbStatusDisconnectedSub = findViewById(R.id.tv_adb_status_disconnected_sub)
-        tvAdbStatusConnectedTitle = findViewById(R.id.tv_adb_status_connected_title)
-        tvAdbStatusConnectedSub = findViewById(R.id.tv_adb_status_connected_sub)
+        dotAdbStatus = findViewById(R.id.dot_adb_status)
+        tvAdbStatusTitle = findViewById(R.id.tv_adb_status_title)
+        tvAdbStatusSub = findViewById(R.id.tv_adb_status_sub)
         etAdbHost = findViewById(R.id.et_adb_host)
         etAdbPort = findViewById(R.id.et_adb_port)
         btnAdbConnect = findViewById(R.id.btn_adb_connect)
@@ -218,11 +221,22 @@ class MainActivity : AppCompatActivity() {
         tvAdbGuide = findViewById(R.id.tv_adb_guide)
 
         // Overlay Views
+        cardAccessibility = findViewById(R.id.card_accessibility)
+        tvAccessibilityBadge = findViewById(R.id.tv_accessibility_badge)
+        tvAccessibilityDesc = findViewById(R.id.tv_accessibility_desc)
+        tvAppVersion = findViewById(R.id.tv_app_version)
         cardOverlayPermission = findViewById(R.id.card_overlay_permission)
         tvOverlayStatusDesc = findViewById(R.id.tv_overlay_status_desc)
         tvOverlayBadge = findViewById(R.id.tv_overlay_badge)
         swOverlayPermission = findViewById(R.id.sw_overlay_permission)
         swTasksFloatingWidget = findViewById(R.id.sw_tasks_floating_widget)
+
+        tvAppVersion.text = try {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "-"
+        } catch (_: Exception) {
+            "-"
+        }
     }
 
     private fun setupBottomNav() {
@@ -356,17 +370,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Advanced Options accordion toggle
-        findViewById<View>(R.id.header_advanced_options).setOnClickListener {
-            if (boxAdvancedOptions.visibility == View.VISIBLE) {
-                boxAdvancedOptions.visibility = View.GONE
-                ivAdvancedArrow.text = "▼"
-            } else {
-                boxAdvancedOptions.visibility = View.VISIBLE
-                ivAdvancedArrow.text = "▲"
-            }
-        }
-
         // Save settings button
         findViewById<View>(R.id.btn_save_settings).setOnClickListener {
             saveTaskPrefs()
@@ -389,7 +392,7 @@ class MainActivity : AppCompatActivity() {
             val curAcc = if (accounts.isNotEmpty() && selectedIdx in accounts.indices) {
                 "@${accounts[selectedIdx].getDisplayName()}"
             } else ""
-            Toast.makeText(this, "✓ Đã lưu cài đặt cho $curAcc thành công!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Đã lưu cài đặt cho $curAcc", Toast.LENGTH_SHORT).show()
             bottomNav.selectedItemId = R.id.nav_dashboard
         }
 
@@ -433,7 +436,6 @@ class MainActivity : AppCompatActivity() {
             RunnerController.clearLogs()
             Toast.makeText(this, "Đã xóa sạch nhật ký", Toast.LENGTH_SHORT).show()
         }
-        findViewById<View>(R.id.btn_clear_log).setOnClickListener(clearAction)
         findViewById<View>(R.id.btn_clear_log_top).setOnClickListener(clearAction)
 
         // Logout
@@ -468,6 +470,15 @@ class MainActivity : AppCompatActivity() {
             RunnerController.addLog(LogLevel.WARN, "Đã ngắt kết nối ADB.")
         }
 
+        // Trợ Năng: mở thẳng màn hình cài đặt Trợ Năng của hệ thống
+        cardAccessibility.setOnClickListener {
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (e: Exception) {
+                Toast.makeText(this, "Không thể mở cài đặt Trợ Năng: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         // Overlay Listeners
         cardOverlayPermission.setOnClickListener {
             requestOverlayPermission()
@@ -494,15 +505,15 @@ class MainActivity : AppCompatActivity() {
             hasOverlay && taskPrefs().getBoolean(FloatingWidgetService.PREF_WIDGET_ENABLED, true)
 
         if (hasOverlay) {
-            tvOverlayBadge.text = "ĐÃ BẬT"
-            tvOverlayBadge.setTextColor(Color.parseColor("#10B981"))
-            tvOverlayBadge.setBackgroundResource(R.drawable.bg_pill_active)
-            tvOverlayStatusDesc.text = "Cửa sổ nổi đã sẵn sàng hoạt động khi bắt đầu auto"
+            tvOverlayBadge.text = "Đã bật"
+            tvOverlayBadge.setTextColor(col(R.color.status_ok))
+            tvOverlayBadge.setBackgroundResource(R.drawable.bg_badge_on)
+            tvOverlayStatusDesc.text = "Bảng điều khiển nổi sẵn sàng khi bắt đầu chạy"
         } else {
-            tvOverlayBadge.text = "CHƯA BẬT"
-            tvOverlayBadge.setTextColor(Color.parseColor("#EF4444"))
-            tvOverlayBadge.setBackgroundResource(R.drawable.bg_pill_inactive)
-            tvOverlayStatusDesc.text = "Chạm để cấp quyền hiển thị cửa sổ điều khiển nổi"
+            tvOverlayBadge.text = "Chưa bật"
+            tvOverlayBadge.setTextColor(col(R.color.status_error))
+            tvOverlayBadge.setBackgroundResource(R.drawable.bg_badge_off)
+            tvOverlayStatusDesc.text = "Chạm để cấp quyền hiển thị nút nổi"
         }
     }
 
@@ -543,71 +554,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun col(colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
+
+    private fun updateAccessibilityUi() {
+        if (com.f4f.autorunner.service.F4FAccessibilityService.isRunning()) {
+            tvAccessibilityBadge.text = "Đã bật"
+            tvAccessibilityBadge.setTextColor(col(R.color.status_ok))
+            tvAccessibilityBadge.setBackgroundResource(R.drawable.bg_badge_on)
+            tvAccessibilityDesc.text = "Đang hoạt động, sẵn sàng bấm Follow và Like"
+        } else {
+            tvAccessibilityBadge.text = "Chưa bật"
+            tvAccessibilityBadge.setTextColor(col(R.color.status_error))
+            tvAccessibilityBadge.setBackgroundResource(R.drawable.bg_badge_off)
+            tvAccessibilityDesc.text = "Chạm để bật, cho phép app tự bấm Follow và Like"
+        }
+    }
+
     private fun updateAdbUiState() {
         if (AdbManager.isConnected) {
-            tvDashAdbBadge.text = "⚡ ADB: Đã kết nối (${AdbManager.host}:${AdbManager.port})"
-            tvDashAdbBadge.setTextColor(Color.parseColor("#10B981"))
-
-            // Cập nhật thẻ trạng thái trong Cài đặt
-            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_pill_active)
-            tvAdbStatusConnectedTitle.setTextColor(Color.WHITE)
-            tvAdbStatusConnectedSub.text = "Đang kết nối: ${AdbManager.host}:${AdbManager.port}"
-
-            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_card_secondary)
-            tvAdbStatusDisconnectedTitle.setTextColor(Color.parseColor("#94A3B8"))
-            tvAdbStatusDisconnectedSub.text = "Nhấn Ngắt để hủy"
-
-            btnAdbConnect.text = "🔄 KẾT NỐI LẠI"
+            tvDashAdbBadge.text = "ADB: đã kết nối (${AdbManager.host}:${AdbManager.port})"
+            tvDashAdbBadge.setTextColor(col(R.color.status_ok))
+            dotAdbStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_ok))
+            tvAdbStatusTitle.text = "Đã kết nối"
+            tvAdbStatusSub.text = "${AdbManager.host}:${AdbManager.port}"
+            btnAdbConnect.text = "Kết nối lại"
         } else if (AdbManager.wasEverConnected) {
-            tvDashAdbBadge.text = "⚡ ADB: Từng kết nối (${AdbManager.lastConnectedTime})"
-            tvDashAdbBadge.setTextColor(Color.parseColor("#F59E0B"))
-
-            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_pill_active)
-            tvAdbStatusDisconnectedTitle.setTextColor(Color.WHITE)
-            tvAdbStatusDisconnectedSub.text = "Đang ngắt kết nối"
-
-            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_card_secondary)
-            tvAdbStatusConnectedTitle.setTextColor(Color.parseColor("#10B981"))
-            tvAdbStatusConnectedSub.text = "Từng kết nối: ${AdbManager.lastConnectedTime}"
-
-            btnAdbConnect.text = "⚡ KẾT NỐI ADB"
+            tvDashAdbBadge.text = "ADB: từng kết nối (${AdbManager.lastConnectedTime})"
+            tvDashAdbBadge.setTextColor(col(R.color.status_warn))
+            dotAdbStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_warn))
+            tvAdbStatusTitle.text = "Đã ngắt kết nối"
+            tvAdbStatusSub.text = "Lần kết nối gần nhất: ${AdbManager.lastConnectedTime}"
+            btnAdbConnect.text = "Kết nối"
         } else {
-            tvDashAdbBadge.text = "⚡ ADB: Chưa kết nối"
-            tvDashAdbBadge.setTextColor(Color.parseColor("#EF4444"))
-
-            boxAdbStatusDisconnected.setBackgroundResource(R.drawable.bg_pill_active)
-            tvAdbStatusDisconnectedTitle.setTextColor(Color.WHITE)
-            tvAdbStatusDisconnectedSub.text = "Chưa kết nối ADB"
-
-            boxAdbStatusConnected.setBackgroundResource(R.drawable.bg_card_secondary)
-            tvAdbStatusConnectedTitle.setTextColor(Color.parseColor("#94A3B8"))
-            tvAdbStatusConnectedSub.text = "Chưa có lịch sử kết nối"
-
-            btnAdbConnect.text = "⚡ KẾT NỐI ADB"
+            tvDashAdbBadge.text = "ADB: chưa kết nối"
+            tvDashAdbBadge.setTextColor(col(R.color.status_error))
+            dotAdbStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_error))
+            tvAdbStatusTitle.text = "Chưa kết nối"
+            tvAdbStatusSub.text = "Chưa có lịch sử kết nối"
+            btnAdbConnect.text = "Kết nối"
         }
     }
 
     private fun updatePlatformSelectionUi() {
-        val prefs = taskPrefs()
-        if (selectedPlatform == "tiktok") {
-            cardStatusTiktok.setBackgroundResource(R.drawable.bg_card_selected)
-            cardStatusInstagram.setBackgroundResource(R.drawable.bg_card_premium)
-            btnSegmentTiktok.setBackgroundResource(R.drawable.bg_pill_active)
-            btnSegmentInstagram.background = null
+        val isTiktok = selectedPlatform == "tiktok"
+        cardStatusTiktok.isSelected = isTiktok
+        cardStatusInstagram.isSelected = !isTiktok
+        btnSegmentTiktok.isSelected = isTiktok
+        btnSegmentInstagram.isSelected = !isTiktok
 
-            val savedName = prefs.getString("saved_tiktok_acc_name", "")
-            val accLabel = if (!savedName.isNullOrBlank()) " (@$savedName)" else ""
-            btnDashStart.text = "▶  BẮT ĐẦU TIKTOK$accLabel"
-        } else {
-            cardStatusInstagram.setBackgroundResource(R.drawable.bg_card_selected)
-            cardStatusTiktok.setBackgroundResource(R.drawable.bg_card_premium)
-            btnSegmentInstagram.setBackgroundResource(R.drawable.bg_pill_active)
-            btnSegmentTiktok.background = null
-
-            val savedName = prefs.getString("saved_ig_acc_name", "")
-            val accLabel = if (!savedName.isNullOrBlank()) " (@$savedName)" else ""
-            btnDashStart.text = "▶  BẮT ĐẦU INSTAGRAM$accLabel"
-        }
+        val savedName = taskPrefs().getString(if (isTiktok) "saved_tiktok_acc_name" else "saved_ig_acc_name", "")
+        val accLabel = if (!savedName.isNullOrBlank()) " (@$savedName)" else ""
+        btnDashStart.text = "Bắt đầu ${if (isTiktok) "TikTok" else "Instagram"}$accLabel"
     }
 
     private fun updateActiveAccountsSpinner() {
@@ -616,13 +613,13 @@ class MainActivity : AppCompatActivity() {
 
         if (currentList.isEmpty()) {
             val names = listOf("(Chưa có nick $selectedPlatform nào)")
-            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
+            val adapter = spinnerAdapter(names)
             spAccounts.adapter = adapter
             return
         }
 
         val names = currentList.map { "@${it.getDisplayName()} (${it.status ?: "Hoạt động"})" }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, names)
+        val adapter = spinnerAdapter(names)
         isRestoringSpinnerSelection = true
         spAccounts.adapter = adapter
 
@@ -648,14 +645,14 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             if (apiClient.token == null) {
                 tvTiktokConnStatus.text = "Chưa kết nối"
-                tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                tvTiktokConnStatus.setTextColor(col(R.color.text_sub))
                 ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
-                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.text_muted))
 
                 tvInstagramConnStatus.text = "Chưa kết nối"
-                tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                tvInstagramConnStatus.setTextColor(col(R.color.text_sub))
                 ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
-                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.text_muted))
                 updatePlatformSelectionUi()
                 return@launch
             }
@@ -676,14 +673,14 @@ class MainActivity : AppCompatActivity() {
                 editor.putLong("saved_tiktok_acc_id", matchedTt.getId())
                 editor.putString("saved_tiktok_acc_name", matchedTt.getDisplayName())
                 tvTiktokConnStatus.text = "Đã kết nối (@${matchedTt.getDisplayName()})"
-                tvTiktokConnStatus.setTextColor(Color.parseColor("#10B981"))
+                tvTiktokConnStatus.setTextColor(col(R.color.status_ok))
                 ivTiktokConnIcon.setImageResource(R.drawable.ic_check_circle)
-                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.status_ok))
             } else {
                 tvTiktokConnStatus.text = "Chưa kết nối"
-                tvTiktokConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                tvTiktokConnStatus.setTextColor(col(R.color.text_sub))
                 ivTiktokConnIcon.setImageResource(R.drawable.ic_close_circle)
-                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                ivTiktokConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.text_muted))
             }
 
             // Instagram
@@ -693,14 +690,14 @@ class MainActivity : AppCompatActivity() {
                 editor.putLong("saved_ig_acc_id", matchedIg.getId())
                 editor.putString("saved_ig_acc_name", matchedIg.getDisplayName())
                 tvInstagramConnStatus.text = "Đã kết nối (@${matchedIg.getDisplayName()})"
-                tvInstagramConnStatus.setTextColor(Color.parseColor("#10B981"))
+                tvInstagramConnStatus.setTextColor(col(R.color.status_ok))
                 ivInstagramConnIcon.setImageResource(R.drawable.ic_check_circle)
-                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.status_ok))
             } else {
                 tvInstagramConnStatus.text = "Chưa kết nối"
-                tvInstagramConnStatus.setTextColor(Color.parseColor("#94A3B8"))
+                tvInstagramConnStatus.setTextColor(col(R.color.text_sub))
                 ivInstagramConnIcon.setImageResource(R.drawable.ic_close_circle)
-                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#64748B"))
+                ivInstagramConnIcon.imageTintList = ColorStateList.valueOf(col(R.color.text_muted))
             }
             editor.apply()
 
@@ -709,9 +706,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun spinnerAdapter(items: List<String>): ArrayAdapter<String> =
+        ArrayAdapter(this, R.layout.item_spinner, items).also {
+            it.setDropDownViewResource(R.layout.item_spinner_dropdown)
+        }
+
     private fun initTaskControls() {
         val jobTypes = listOf("Follow", "Like", "Tất cả (Follow & Like)")
-        val jobAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, jobTypes)
+        val jobAdapter = spinnerAdapter(jobTypes)
         spJobType.adapter = jobAdapter
         loadTaskPrefs()
     }
@@ -752,29 +754,33 @@ class MainActivity : AppCompatActivity() {
             RunnerController.state.collectLatest { state ->
                 when (state) {
                     RunnerState.IDLE, RunnerState.STOPPED -> {
-                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_ok))
                         tvHeroTitle.text = "Đang sẵn sàng"
-                        tvHeroSubtitle.text = "Nhấn START để bắt đầu chạy auto"
+                        tvHeroSubtitle.text = "Nhấn Bắt đầu để chạy auto"
                         btnDashStart.visibility = View.VISIBLE
                         boxRunningControls.visibility = View.GONE
                     }
                     RunnerState.RUNNING -> {
-                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#10B981"))
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_ok))
                         tvHeroTitle.text = "Đang chạy chiến dịch (${if (AdbManager.isConnected) "ADB" else "Trợ Năng"})"
                         tvHeroSubtitle.text = "Tự động tương tác và nhận xu..."
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
-                        btnDashPause.text = "⏸  TẠM DỪNG"
-                        btnDashPause.setTextColor(Color.WHITE)
+                        btnDashPause.text = "Tạm dừng"
+                        btnDashPause.setIconResource(R.drawable.ic_pause)
+                        btnDashPause.setTextColor(col(R.color.text_primary))
+                        btnDashPause.iconTint = ColorStateList.valueOf(col(R.color.text_primary))
                     }
                     RunnerState.PAUSED -> {
-                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F59E0B"))
+                        dotHeroStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_warn))
                         tvHeroTitle.text = "Đang tạm dừng"
-                        tvHeroSubtitle.text = "Nhấn TIẾP TỤC để chạy lại"
+                        tvHeroSubtitle.text = "Nhấn Tiếp tục để chạy lại"
                         btnDashStart.visibility = View.GONE
                         boxRunningControls.visibility = View.VISIBLE
-                        btnDashPause.text = "▶  TIẾP TỤC"
-                        btnDashPause.setTextColor(Color.parseColor("#10B981"))
+                        btnDashPause.text = "Tiếp tục"
+                        btnDashPause.setIconResource(R.drawable.ic_play)
+                        btnDashPause.setTextColor(col(R.color.coin))
+                        btnDashPause.iconTint = ColorStateList.valueOf(col(R.color.coin))
                     }
                 }
             }
@@ -790,11 +796,21 @@ class MainActivity : AppCompatActivity() {
                 tvDashStatCompleted.text = completed.toString()
                 tvDashStatFailed.text = failed.toString()
                 tvDashStatTotal.text = total.toString()
-                tvDashStatCoins.text = "+${stats.coinsEarned} xu"
+                // Số xu to, chữ "xu" nhỏ hơn
+                tvDashStatCoins.text = SpannableStringBuilder("+${stats.coinsEarned}").apply {
+                    val unitStart = length
+                    append(" xu")
+                    setSpan(RelativeSizeSpan(0.36f), unitStart, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+
+                val processed = total + stats.already
+                progressSession.max = maxJobs.coerceAtLeast(1)
+                progressSession.progress = processed.coerceAtMost(maxJobs)
+                tvDashProgress.text = "$processed / $maxJobs job"
 
                 val dynamicTotalBalance = userBaseBalance + stats.coinsEarned
-                tvDashBalance.text = "🪙 Số dư F4F: $dynamicTotalBalance xu"
-                tvSettingsBalance.text = "🪙 Số dư: $dynamicTotalBalance xu"
+                tvDashBalance.text = "$dynamicTotalBalance xu"
+                tvSettingsBalance.text = "Số dư: $dynamicTotalBalance xu"
             }
         }
 
@@ -822,12 +838,8 @@ class MainActivity : AppCompatActivity() {
     private fun setChipFilter(level: LogLevel?, view: View) {
         activeLogFilter = level
         val chips = listOf(chipFilterAll, chipFilterInfo, chipFilterSuccess, chipFilterWarn, chipFilterError)
-        for (c in chips) {
-            c.setBackgroundResource(R.drawable.bg_pill_inactive)
-            c.setTextColor(Color.parseColor("#94A3B8"))
-        }
-        view.setBackgroundResource(R.drawable.bg_pill_active)
-        (view as TextView).setTextColor(Color.WHITE)
+        for (c in chips) c.isSelected = false
+        view.isSelected = true
         renderLogs(RunnerController.logs.value)
     }
 
@@ -839,19 +851,36 @@ class MainActivity : AppCompatActivity() {
         }
 
         val ssb = SpannableStringBuilder()
+        if (filtered.isEmpty()) {
+            ssb.append("Chưa có nhật ký.")
+            ssb.setSpan(ForegroundColorSpan(col(R.color.text_muted)), 0, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
         for (entry in filtered) {
-            val start = ssb.length
-            val line = "[${entry.timestamp}] [${entry.level}] ${entry.message}\n"
-            ssb.append(line)
-            val end = ssb.length
+            // Giờ (mờ) | nhãn mức độ (màu, đậm) | nội dung
+            val tsStart = ssb.length
+            ssb.append(entry.timestamp.toString())
+            ssb.setSpan(ForegroundColorSpan(col(R.color.text_muted)), tsStart, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.append("  ")
 
-            val color = when (entry.level) {
-                LogLevel.SUCCESS -> Color.parseColor("#10B981")
-                LogLevel.WARN -> Color.parseColor("#F59E0B")
-                LogLevel.ERROR -> Color.parseColor("#EF4444")
-                LogLevel.INFO -> Color.parseColor("#38BDF8")
+            val levelColor = when (entry.level) {
+                LogLevel.SUCCESS -> col(R.color.status_ok)
+                LogLevel.WARN -> col(R.color.status_warn)
+                LogLevel.ERROR -> col(R.color.status_error)
+                LogLevel.INFO -> col(R.color.status_info)
             }
-            ssb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            val tagStart = ssb.length
+            ssb.append(entry.level.toString().padEnd(7))
+            ssb.setSpan(ForegroundColorSpan(levelColor), tagStart, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(StyleSpan(Typeface.BOLD), tagStart, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+            val msgStart = ssb.length
+            ssb.append(entry.message).append("\n")
+            val msgColor = when (entry.level) {
+                LogLevel.WARN -> col(R.color.status_warn)
+                LogLevel.ERROR -> col(R.color.status_error)
+                else -> col(R.color.text_primary)
+            }
+            ssb.setSpan(ForegroundColorSpan(msgColor), msgStart, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
         tvTerminalLogs.text = ssb
@@ -975,8 +1004,8 @@ class MainActivity : AppCompatActivity() {
 
                 tvSettingsUsername.text = data.user.username ?: user
                 tvSettingsUserid.text = "ID: ${data.user.id ?: "F4F"}"
-                tvSettingsBalance.text = "🪙 Số dư: $displayBalance"
-                tvDashBalance.text = "🪙 Số dư F4F: $displayBalance"
+                tvSettingsBalance.text = "Số dư: $displayBalance"
+                tvDashBalance.text = "$displayBalance"
 
                 RunnerController.addLog(LogLevel.SUCCESS, "Đăng nhập thành công: @${data.user.username} | $displayBalance")
                 checkPlatformAccountsHealth()
@@ -1004,8 +1033,8 @@ class MainActivity : AppCompatActivity() {
         selectedPlatform = prefs.getString("saved_platform", "tiktok") ?: "tiktok"
         updatePlatformSelectionUi()
 
-        tvSettingsBalance.text = "🪙 Số dư: $savedBal"
-        tvDashBalance.text = "🪙 Số dư F4F: $savedBal"
+        tvSettingsBalance.text = "Số dư: $savedBal"
+        tvDashBalance.text = "$savedBal"
 
         if (user.isNotEmpty() && pass.isNotEmpty()) {
             performLogin(user, pass)

@@ -130,7 +130,7 @@ object RunnerController {
         if (_state.value == RunnerState.RUNNING) {
             _state.value = RunnerState.PAUSED
             activeEngine?.pause()
-            _currentJobInfo.value = "⏸ Đang tạm dừng..."
+            _currentJobInfo.value = "Đang tạm dừng..."
             addLog(LogLevel.WARN, "Đã tạm dừng (PAUSED). Nhấn Tiếp tục để chạy lại.")
         }
     }
@@ -140,7 +140,7 @@ object RunnerController {
         if (_state.value == RunnerState.PAUSED) {
             _state.value = RunnerState.RUNNING
             activeEngine?.resume()
-            _currentJobInfo.value = "▶ Đã tiếp tục..."
+            _currentJobInfo.value = "Đã tiếp tục..."
             addLog(LogLevel.INFO, "Đã tiếp tục phiên chạy (RESUMED).")
         }
     }
@@ -151,7 +151,7 @@ object RunnerController {
             _state.value = RunnerState.STOPPED
             activeEngine?.stop()
             activeEngine = null
-            _currentJobInfo.value = "⏹ Đã dừng phiên chạy."
+            _currentJobInfo.value = "Đã dừng phiên chạy."
             addLog(LogLevel.WARN, "Đã dừng phiên chạy khẩn cấp (STOPPED).")
         }
     }

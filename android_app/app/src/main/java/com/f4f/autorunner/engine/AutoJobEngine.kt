@@ -75,9 +75,9 @@ class AutoJobEngine(
                 }
 
                 if (hasAdb) {
-                    onLog(LogLevel.INFO, "⚡ Sử dụng chế độ: ADB Tự động hóa (Tối ưu, ổn định)")
+                    onLog(LogLevel.INFO, "Chế độ điều khiển: ADB (ổn định nhất)")
                 } else {
-                    onLog(LogLevel.INFO, "♿ Sử dụng chế độ: Trợ Năng F4F (Chế độ dự phòng)")
+                    onLog(LogLevel.INFO, "Chế độ điều khiển: Trợ Năng (dự phòng)")
                 }
 
                 runJobLoop()
@@ -254,7 +254,7 @@ class AutoJobEngine(
                     // Mô phỏng lướt feed chống checkpoint
                     if (antiBanEveryNJobs > 0 && jobsSinceHuman >= antiBanEveryNJobs) {
                         onLog(LogLevel.INFO, "[Anti-Ban] Lướt feed $antiBanScrollTimes lần mô phỏng người thật...")
-                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("🛡️ [Anti-Ban] Đang lướt feed...")
+                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Đang lướt feed để giống người thật...")
                         triggerAntiBan()
                         jobsSinceHuman = 0
                     }
@@ -265,7 +265,7 @@ class AutoJobEngine(
                         val maxD = delayMax.coerceAtLeast(minD)
                         val sleepSec = if (minD == maxD) minD else Random.nextInt(minD, maxD + 1)
                         onLog(LogLevel.INFO, "Nghỉ an toàn ${sleepSec}s trước nhiệm vụ tiếp theo...")
-                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("⏳ Chờ ${sleepSec}s trước job tiếp theo...")
+                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Chờ ${sleepSec}s trước job tiếp theo...")
                         cancellableDelay(sleepSec)
                     }
                 }
@@ -273,14 +273,14 @@ class AutoJobEngine(
 
             if (!jobsFoundInRound && totalProcessed < maxJobs && checkCanProceed()) {
                 onLog(LogLevel.WARN, "Chưa có job mới khả dụng. Tự động chờ 20s quét lại...")
-                com.f4f.autorunner.controller.RunnerController.updateJobInfo("🔍 Chưa có job mới. Chờ 20s quét lại...")
+                com.f4f.autorunner.controller.RunnerController.updateJobInfo("Chưa có job mới, quét lại sau 20s...")
                 cancellableDelay(20)
             }
         }
 
         if (totalProcessed >= maxJobs) {
             onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
-            com.f4f.autorunner.controller.RunnerController.updateJobInfo("🎉 Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs jobs)")
+            com.f4f.autorunner.controller.RunnerController.updateJobInfo("Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs job)")
         }
     }
 
@@ -289,7 +289,7 @@ class AutoJobEngine(
         val reward = job.getRewardInt()
         val jobDesc = "[${job.typeJob.uppercase()}] @${target.removePrefix("@")} (+$reward xu)"
         onLog(LogLevel.INFO, "Job #${job.id} $jobDesc")
-        com.f4f.autorunner.controller.RunnerController.updateJobInfo("🎯 $jobDesc")
+        com.f4f.autorunner.controller.RunnerController.updateJobInfo("$jobDesc")
 
         if (!checkCanProceed()) return "stopped"
 

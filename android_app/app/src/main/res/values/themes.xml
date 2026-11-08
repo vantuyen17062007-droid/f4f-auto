@@ -1,10 +1,167 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.F4FAutoRunner" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/primary_neon</item>
-        <item name="colorPrimaryVariant">@color/cyan_neon</item>
-        <item name="colorOnPrimary">#000000</item>
-        <item name="android:windowBackground">@color/bg_dark</item>
-        <item name="android:statusBarColor">@color/bg_dark</item>
+
+    <!-- ============ Theme chính (luôn tối, nền xanh lục) ============ -->
+    <style name="Theme.F4FAutoRunner" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/coin</item>
+        <item name="colorPrimaryVariant">@color/coin_deep</item>
+        <item name="colorOnPrimary">@color/on_coin</item>
+        <item name="colorSecondary">@color/coin</item>
+        <item name="colorSecondaryVariant">@color/coin_deep</item>
+        <item name="colorOnSecondary">@color/on_coin</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorError">@color/status_error</item>
+
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_sub</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:textColorHighlight">#55F4C542</item>
+
+        <item name="android:fontFamily">@font/f4f_font</item>
+        <item name="fontFamily">@font/f4f_font</item>
+
+        <item name="alertDialogTheme">@style/ThemeOverlay.F4F.AlertDialog</item>
+        <item name="bottomNavigationStyle">@style/Widget.F4F.BottomNav</item>
+    </style>
+
+    <!-- ============ Hộp thoại ============ -->
+    <style name="ThemeOverlay.F4F.AlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_sub</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.F4F.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.F4F.DialogButton.Muted</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.F4F.DialogButton.Muted</item>
+    </style>
+
+    <style name="Widget.F4F.DialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/coin</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+    </style>
+
+    <style name="Widget.F4F.DialogButton.Muted">
+        <item name="android:textColor">@color/text_sub</item>
+    </style>
+
+    <!-- ============ Thanh điều hướng dưới ============ -->
+    <style name="Widget.F4F.BottomNav" parent="Widget.MaterialComponents.BottomNavigationView">
+        <item name="android:background">@color/surface</item>
+        <item name="itemIconTint">@color/nav_item</item>
+        <item name="itemTextColor">@color/nav_item</item>
+        <item name="itemTextAppearanceActive">@style/TextAppearance.F4F.NavLabel</item>
+        <item name="itemTextAppearanceInactive">@style/TextAppearance.F4F.NavLabel</item>
+        <item name="labelVisibilityMode">labeled</item>
+    </style>
+
+    <!-- ============ Kiểu chữ (Be Vietnam Pro) ============ -->
+    <style name="TextAppearance.F4F.NavLabel" parent="android:TextAppearance">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+    </style>
+
+    <!-- Số xu cỡ lớn: điểm nhấn duy nhất của trang Tổng quan -->
+    <style name="F4F.Text.Display" parent="android:TextAppearance">
+        <item name="android:textSize">56sp</item>
+        <item name="android:textColor">@color/coin</item>
+        <item name="android:fontFamily">@font/bvp_extrabold</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="F4F.Text.Headline" parent="android:TextAppearance">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/bvp_bold</item>
+    </style>
+
+    <style name="F4F.Text.Title" parent="android:TextAppearance">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/bvp_bold</item>
+    </style>
+
+    <style name="F4F.Text.RowTitle" parent="android:TextAppearance">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+    </style>
+
+    <style name="F4F.Text.RowSub" parent="android:TextAppearance">
+        <item name="android:textSize">12.5sp</item>
+        <item name="android:textColor">@color/text_sub</item>
+        <item name="android:fontFamily">@font/f4f_font</item>
+    </style>
+
+    <style name="F4F.Text.Section" parent="android:TextAppearance">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_sub</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+    </style>
+
+    <style name="F4F.Text.Value" parent="android:TextAppearance">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">@font/bvp_bold</item>
+    </style>
+
+    <style name="F4F.Text.Chip" parent="android:TextAppearance">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+    </style>
+
+    <!-- ============ Nút bấm ============ -->
+    <style name="Widget.F4F.Button.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:fontFamily">@font/bvp_bold</item>
+        <item name="android:textColor">@color/on_coin</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="backgroundTint">@color/coin</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="iconTint">@color/on_coin</item>
+        <item name="iconPadding">8dp</item>
+        <item name="rippleColor">#33000000</item>
+    </style>
+
+    <style name="Widget.F4F.Button.Outline" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:fontFamily">@font/bvp_semibold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="strokeColor">@color/hairline_strong</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="iconTint">@color/text_primary</item>
+        <item name="iconPadding">8dp</item>
+        <item name="rippleColor">@color/ripple</item>
+    </style>
+
+    <style name="Widget.F4F.Button.Danger" parent="Widget.F4F.Button.Outline">
+        <item name="android:textColor">@color/status_error</item>
+        <item name="strokeColor">@color/status_error</item>
+        <item name="iconTint">@color/status_error</item>
+    </style>
+
+    <style name="Widget.F4F.Button.Small" parent="Widget.F4F.Button.Outline">
+        <item name="android:minHeight">40dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="cornerRadius">12dp</item>
     </style>
 </resources>
