@@ -27,23 +27,23 @@ object UiXmlParser {
 
     private val BOUNDS_PATTERN = Pattern.compile("\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]")
 
-    private val FOLLOW_LABELS = setOf(
+    val FOLLOW_LABELS = setOf(
         "follow", "theo dõi", "theo doi", "follow lại", "follow lai",
         "follow back", "theo dõi lại", "theo doi lai"
     )
 
-    private val FOLLOWED_LABELS = setOf(
+    val FOLLOWED_LABELS = setOf(
         "đã follow", "da follow", "đang follow", "dang follow",
         "following", "đã theo dõi", "da theo doi", "đang theo dõi", "dang theo doi",
         "bạn bè", "ban be", "friends", "followed"
     )
 
-    private val REQUESTED_LABELS = setOf(
-        "đã yêu cầu", "da yeu cau", "requested", "yêu cầu đã gửi", "request sent"
+    val REQUESTED_LABELS = setOf(
+        "đã yêu cầu", "da yeu cau", "requested", "yêu cầu đã gửi", "request sent", "đã gửi yêu cầu", "da gui yeu cau"
     )
 
-    private val MESSAGE_LABELS = setOf(
-        "nhắn tin", "message", "gửi tin nhắn", "gui tin nhan"
+    val MESSAGE_LABELS = setOf(
+        "nhắn tin", "nhan tin", "tin nhắn", "tin nhan", "message", "messages", "gửi tin nhắn", "gui tin nhan"
     )
 
     private val UNLIKE_LABELS = setOf(
