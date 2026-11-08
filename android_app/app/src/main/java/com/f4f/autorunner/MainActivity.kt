@@ -937,7 +937,10 @@ class MainActivity : AppCompatActivity() {
         // service tự quyết định có vẽ bong bóng nổi hay không.
         try {
             ContextCompat.startForegroundService(this, Intent(this, FloatingWidgetService::class.java))
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "startForegroundService failed", e)
+            RunnerController.addLog(LogLevel.ERROR, "Lỗi khởi động cửa sổ nổi: ${e.message}")
+        }
         if (!hasOverlay && swTasksFloatingWidget.isChecked) {
             Toast.makeText(this, "Mẹo: Bạn có thể bật 'Hiển thị trên ứng dụng khác' trong Cài đặt để hiện cửa sổ nổi!", Toast.LENGTH_LONG).show()
         }

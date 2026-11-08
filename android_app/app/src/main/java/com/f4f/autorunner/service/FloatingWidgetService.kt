@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.f4f.autorunner.MainActivity
 import com.f4f.autorunner.R
+import com.f4f.autorunner.controller.LogLevel
 import com.f4f.autorunner.controller.RunnerController
 import com.f4f.autorunner.controller.RunnerState
 import kotlinx.coroutines.*
@@ -41,6 +42,7 @@ class FloatingWidgetService : Service() {
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var overlayJob: Job? = null
     private var startTimeMs: Long = 0
     private var seenActive = false
 
@@ -50,14 +52,6 @@ class FloatingWidgetService : Service() {
         super.onCreate()
         startTimeMs = System.currentTimeMillis()
         startAsForeground()
-
-        if (canShowOverlay()) {
-            try {
-                setupOverlay()
-            } catch (_: Exception) {
-                removeOverlay()
-            }
-        }
 
         // Tự dừng khi phiên chạy kết thúc. Chỉ dừng sau khi đã thấy RUNNING/PAUSED,
         // tránh tự tắt ngay lúc khởi tạo khi state còn là IDLE/STOPPED của phiên trước.
@@ -69,6 +63,20 @@ class FloatingWidgetService : Service() {
                 }
             }
         }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startTimeMs = System.currentTimeMillis()
+        if (floatingView == null && canShowOverlay()) {
+            try {
+                setupOverlay()
+            } catch (e: Exception) {
+                android.util.Log.e("FloatingWidget", "setupOverlay failed", e)
+                RunnerController.addLog(LogLevel.ERROR, "Không hiện được cửa sổ nổi: ${e.message}")
+                removeOverlay()
+            }
+        }
+        return START_NOT_STICKY
     }
 
     private fun canShowOverlay(): Boolean {
@@ -101,8 +109,9 @@ class FloatingWidgetService : Service() {
             } else {
                 startForeground(NOTIF_ID, notification)
             }
-        } catch (_: Exception) {
-            // Không có quyền thông báo / hệ thống từ chối: vẫn chạy bình thường như service thường
+        } catch (e: Exception) {
+            android.util.Log.e("FloatingWidget", "startAsForeground failed", e)
+            RunnerController.addLog(LogLevel.WARN, "Không khởi tạo được thông báo chạy ngầm: ${e.message}")
         }
     }
 
@@ -186,70 +195,77 @@ class FloatingWidgetService : Service() {
         // Đóng bong bóng nhưng KHÔNG dừng phiên chạy (service vẫn giữ tiến trình sống)
         btnClose?.setOnClickListener { removeOverlay() }
 
-        // Lắng nghe tài khoản & công việc đang chạy
-        serviceScope.launch {
-            RunnerController.currentAccount.collectLatest { acc ->
-                tvFloatingAccount?.text = if (acc.isNotBlank()) "@$acc" else "Chưa chọn nick"
-            }
-        }
-
-        serviceScope.launch {
-            RunnerController.currentPlatform.collectLatest { plat ->
-                tvFloatingPlatform?.text = if (plat == "instagram") "Instagram" else "TikTok"
-            }
-        }
-
-        serviceScope.launch {
-            RunnerController.currentJobInfo.collectLatest { info ->
-                tvFloatingJobInfo?.text = info
-            }
-        }
-
-        serviceScope.launch {
-            RunnerController.state.collectLatest { state ->
-                val color = when (state) {
-                    RunnerState.RUNNING -> R.color.status_ok
-                    RunnerState.PAUSED -> R.color.status_warn
-                    RunnerState.STOPPED, RunnerState.IDLE -> R.color.status_error
+        // Lắng nghe tài khoản & công việc đang chạy (gom vào overlayJob để hủy khi đóng bong bóng)
+        overlayJob?.cancel()
+        overlayJob = serviceScope.launch {
+            launch {
+                RunnerController.currentAccount.collectLatest { acc ->
+                    tvFloatingAccount?.text = if (acc.isNotBlank()) "@$acc" else "Chưa chọn nick"
                 }
-                dotIndicator?.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this@FloatingWidgetService, color))
             }
-        }
 
-        serviceScope.launch {
-            RunnerController.stats.collectLatest { stats ->
-                val completed = stats.followed + stats.liked
-                val failed = stats.skipped + stats.errors
-                tvSuccess?.text = "$completed Thành công"
-                tvFailed?.text = "$failed Thất bại"
-                tvCoins?.text = "+${stats.coinsEarned} xu"
+            launch {
+                RunnerController.currentPlatform.collectLatest { plat ->
+                    tvFloatingPlatform?.text = if (plat == "instagram") "Instagram" else "TikTok"
+                }
             }
-        }
 
-        serviceScope.launch {
-            while (isActive) {
-                val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
-                val hours = elapsedSec / 3600
-                val mins = (elapsedSec % 3600) / 60
-                val stateName = if (RunnerController.isPaused) "Tạm dừng" else "Đang chạy"
-                tvStatusTime?.text = "$stateName • ${hours}h ${mins}m"
-                delay(1000)
+            launch {
+                RunnerController.currentJobInfo.collectLatest { info ->
+                    tvFloatingJobInfo?.text = info
+                }
+            }
+
+            launch {
+                RunnerController.state.collectLatest { state ->
+                    val color = when (state) {
+                        RunnerState.RUNNING -> R.color.status_ok
+                        RunnerState.PAUSED -> R.color.status_warn
+                        RunnerState.STOPPED, RunnerState.IDLE -> R.color.status_error
+                    }
+                    dotIndicator?.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this@FloatingWidgetService, color))
+                }
+            }
+
+            launch {
+                RunnerController.stats.collectLatest { stats ->
+                    val completed = stats.followed + stats.liked
+                    val failed = stats.skipped + stats.errors
+                    tvSuccess?.text = "$completed Thành công"
+                    tvFailed?.text = "$failed Thất bại"
+                    tvCoins?.text = "+${stats.coinsEarned} xu"
+                }
+            }
+
+            launch {
+                while (isActive) {
+                    val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
+                    val hours = elapsedSec / 3600
+                    val mins = (elapsedSec % 3600) / 60
+                    val stateName = if (RunnerController.isPaused) "Tạm dừng" else "Đang chạy"
+                    tvStatusTime?.text = "$stateName • ${hours}h ${mins}m"
+                    delay(1000)
+                }
             }
         }
     }
 
     private fun removeOverlay() {
+        overlayJob?.cancel()
+        overlayJob = null
         floatingView?.let {
             try {
                 windowManager?.removeView(it)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("FloatingWidget", "removeView failed: ${e.message}")
+            }
         }
         floatingView = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceScope.cancel()
         removeOverlay()
+        serviceScope.cancel()
     }
 }

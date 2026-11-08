@@ -36,5 +36,6 @@ android_app/.gradle/
 # OS generated files
 .DS_Store
 Thumbs.db
+*.zip
 f4f_app_fixed/
 f4f_app_redesign/
