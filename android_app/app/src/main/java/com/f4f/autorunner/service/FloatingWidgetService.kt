@@ -117,7 +117,8 @@ class FloatingWidgetService : Service() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupOverlay() {
-        val view = LayoutInflater.from(this).inflate(R.layout.layout_floating_widget, null)
+        val themedContext = ContextThemeWrapper(this, R.style.Theme_F4FAutoRunner)
+        val view = LayoutInflater.from(themedContext).inflate(R.layout.layout_floating_widget, null)
         floatingView = view
 
         val params = WindowManager.LayoutParams(
