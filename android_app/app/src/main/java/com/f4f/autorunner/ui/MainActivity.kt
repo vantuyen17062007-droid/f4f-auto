@@ -1,4 +1,4 @@
-package com.f4f.autorunner
+package com.f4f.autorunner.ui
 
 import android.Manifest
 import android.content.ClipData
@@ -25,18 +25,22 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.f4f.autorunner.adb.AdbManager
-import com.f4f.autorunner.api.F4FApiClient
-import com.f4f.autorunner.api.SocialAccount
-import com.f4f.autorunner.controller.LogLevel
-import com.f4f.autorunner.controller.RunnerController
-import com.f4f.autorunner.controller.RunnerState
-import com.f4f.autorunner.security.SecureStore
+import com.f4f.autorunner.R
+import com.f4f.autorunner.automation.RunnerController
+import com.f4f.autorunner.data.api.F4FApiClient
+import com.f4f.autorunner.data.api.SocialAccount
+import com.f4f.autorunner.data.security.SecureStore
+import com.f4f.autorunner.device.adb.AdbManager
+import com.f4f.autorunner.model.LogEntry
+import com.f4f.autorunner.model.LogLevel
+import com.f4f.autorunner.model.RunnerState
+import com.f4f.autorunner.service.F4FAccessibilityService
 import com.f4f.autorunner.service.FloatingWidgetService
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -522,7 +526,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Vui lòng tìm 'F4F AutoRunner' và gạt Bật cho phép hiển thị", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Vui lòng tìm 'Tn Tool' và gạt Bật cho phép hiển thị", Toast.LENGTH_LONG).show()
                 try {
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -559,7 +563,7 @@ class MainActivity : AppCompatActivity() {
     private fun col(colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
 
     private fun updateAccessibilityUi() {
-        if (com.f4f.autorunner.service.F4FAccessibilityService.isRunning()) {
+        if (F4FAccessibilityService.isRunning()) {
             tvAccessibilityBadge.text = "Đã bật"
             tvAccessibilityBadge.setTextColor(col(R.color.status_ok))
             tvAccessibilityBadge.setBackgroundResource(R.drawable.bg_badge_on)
@@ -862,7 +866,7 @@ class MainActivity : AppCompatActivity() {
         renderLogs(RunnerController.logs.value)
     }
 
-    private fun renderLogs(logs: List<com.f4f.autorunner.controller.LogEntry>) {
+    private fun renderLogs(logs: List<LogEntry>) {
         val filtered = if (activeLogFilter == null) {
             logs
         } else {
@@ -910,12 +914,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun startRunner() {
         val hasAdb = AdbManager.isConnected
-        val hasAccessibility = com.f4f.autorunner.service.F4FAccessibilityService.isRunning()
+        val hasAccessibility = F4FAccessibilityService.isRunning()
 
         if (!hasAdb && !hasAccessibility) {
             AlertDialog.Builder(this)
                 .setTitle("Chưa có chế độ điều khiển")
-                .setMessage("Cần bật dịch vụ Trợ Năng 'F4F Auto Runner' hoặc kết nối ADB để app tự bấm Follow/Like.")
+                .setMessage("Cần bật dịch vụ Trợ Năng 'Tn Tool' hoặc kết nối ADB để app tự bấm Follow/Like.")
                 .setPositiveButton("Mở cài đặt Trợ Năng") { _, _ ->
                     try {
                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))

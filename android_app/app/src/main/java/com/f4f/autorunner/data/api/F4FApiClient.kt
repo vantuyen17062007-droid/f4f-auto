@@ -1,4 +1,4 @@
-package com.f4f.autorunner.api
+package com.f4f.autorunner.data.api
 
 import com.google.gson.Gson
 import com.google.gson.JsonElement

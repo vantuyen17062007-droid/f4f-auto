@@ -8,9 +8,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.f4f.autorunner.adb.UiNode
-import com.f4f.autorunner.adb.UiXmlParser
-import com.f4f.autorunner.controller.RunnerController
+import com.f4f.autorunner.uitree.UiNode
+import com.f4f.autorunner.uitree.UiXmlParser
 import com.f4f.autorunner.util.AppPackages
 
 /**
@@ -23,6 +22,9 @@ class F4FAccessibilityService : AccessibilityService() {
     companion object {
         var instance: F4FAccessibilityService? = null
             private set
+
+        @Volatile
+        var automationActive: Boolean = false
 
         fun isRunning(): Boolean = instance != null
     }
@@ -38,7 +40,7 @@ class F4FAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (!RunnerController.isRunning) return
+        if (!automationActive) return
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         // Chỉ xử lý popup khi cửa sổ thuộc TikTok / Instagram, không đụng tới app/hệ thống khác
@@ -105,14 +107,14 @@ class F4FAccessibilityService : AccessibilityService() {
 
     /** Tự động đóng popup cấp quyền / đồng bộ danh bạ (chỉ trong TikTok / Instagram). */
     fun dismissPopups(): Boolean {
-        if (!RunnerController.isRunning) return false
+        if (!automationActive) return false
         val pt = UiXmlParser.findPopupDismissButton(snapshotNodes()) ?: return false
         return tapAt(pt.x, pt.y)
     }
 
     /** Mô phỏng người thật vuốt lướt feed. */
     fun simulateHumanBrowse(times: Int, onComplete: () -> Unit) {
-        if (times <= 0 || !RunnerController.isRunning) {
+        if (times <= 0 || !automationActive) {
             onComplete()
             return
         }
@@ -127,7 +129,7 @@ class F4FAccessibilityService : AccessibilityService() {
         val handler = Handler(Looper.getMainLooper())
 
         fun doSwipe(remaining: Int) {
-            if (remaining <= 0 || !RunnerController.isRunning) {
+            if (remaining <= 0 || !automationActive) {
                 onComplete()
                 return
             }
@@ -146,7 +148,6 @@ class F4FAccessibilityService : AccessibilityService() {
                     handler.postDelayed({ doSwipe(remaining - 1) }, 2500L)
                 }
 
-                // Trước đây thiếu onCancelled -> engine treo mãi khi cử chỉ bị hủy
                 override fun onCancelled(gestureDescription: GestureDescription?) {
                     handler.postDelayed({ doSwipe(remaining - 1) }, 1000L)
                 }

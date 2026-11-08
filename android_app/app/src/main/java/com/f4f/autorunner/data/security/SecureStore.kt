@@ -1,4 +1,4 @@
-package com.f4f.autorunner.security
+package com.f4f.autorunner.data.security
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties

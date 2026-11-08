@@ -1,28 +1,20 @@
-package com.f4f.autorunner.engine
+package com.f4f.autorunner.automation
 
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.f4f.autorunner.adb.AdbManager
-import com.f4f.autorunner.adb.UiNode
-import com.f4f.autorunner.adb.UiXmlParser
-import com.f4f.autorunner.api.ApiException
-import com.f4f.autorunner.api.F4FApiClient
-import com.f4f.autorunner.api.F4FJob
-import com.f4f.autorunner.controller.LogLevel
+import com.f4f.autorunner.data.api.ApiException
+import com.f4f.autorunner.data.api.F4FApiClient
+import com.f4f.autorunner.data.api.F4FJob
+import com.f4f.autorunner.device.adb.AdbManager
+import com.f4f.autorunner.model.LogLevel
+import com.f4f.autorunner.model.RunnerStats
 import com.f4f.autorunner.service.F4FAccessibilityService
+import com.f4f.autorunner.uitree.UiNode
+import com.f4f.autorunner.uitree.UiXmlParser
 import com.f4f.autorunner.util.AppPackages
 import kotlinx.coroutines.*
 import kotlin.random.Random
-
-data class RunnerStats(
-    var followed: Int = 0,
-    var liked: Int = 0,
-    var already: Int = 0,
-    var skipped: Int = 0,
-    var errors: Int = 0,
-    var coinsEarned: Int = 0
-)
 
 class AutoJobEngine(
     private val context: Context,
@@ -37,6 +29,7 @@ class AutoJobEngine(
     private val antiBanEveryNJobs: Int = 5,
     private val antiBanScrollTimes: Int = 2,
     private val onLog: (LogLevel, String) -> Unit,
+    private val onJobInfo: (String) -> Unit,
     private val onStatsUpdated: (RunnerStats) -> Unit,
     private val onFinished: (() -> Unit)? = null
 ) {
@@ -267,7 +260,7 @@ class AutoJobEngine(
                             LogLevel.ERROR,
                             "TỰ ĐỘNG DỪNG (Circuit Breaker): Đã gặp 8 nhiệm vụ lỗi/bỏ qua liên tiếp! Để bảo vệ tài khoản tránh bị checkpoint hoặc TikTok giới hạn hành động, tiến trình tự ngắt."
                         )
-                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Dừng do 8 lỗi liên tiếp (Bảo vệ nick)")
+                        onJobInfo("Dừng do 8 lỗi liên tiếp (Bảo vệ nick)")
                         break
                     } else if (consecutiveErrors == 4) {
                         onLog(LogLevel.WARN, "Gặp 4 job thất bại liên tiếp! Tạm dừng 15s để làm mới...")
@@ -277,7 +270,7 @@ class AutoJobEngine(
                     // Mô phỏng lướt feed chống checkpoint
                     if (antiBanEveryNJobs > 0 && jobsSinceHuman >= antiBanEveryNJobs) {
                         onLog(LogLevel.INFO, "[Anti-Ban] Lướt feed $antiBanScrollTimes lần mô phỏng người thật...")
-                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Đang lướt feed để giống người thật...")
+                        onJobInfo("Đang lướt feed để giống người thật...")
                         triggerAntiBan()
                         jobsSinceHuman = 0
                     }
@@ -288,7 +281,7 @@ class AutoJobEngine(
                         val maxD = delayMax.coerceAtLeast(minD)
                         val sleepSec = if (minD == maxD) minD else Random.nextInt(minD, maxD + 1)
                         onLog(LogLevel.INFO, "Nghỉ an toàn ${sleepSec}s trước nhiệm vụ tiếp theo...")
-                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Chờ ${sleepSec}s trước job tiếp theo...")
+                        onJobInfo("Chờ ${sleepSec}s trước job tiếp theo...")
                         cancellableDelay(sleepSec)
                     }
                 }
@@ -296,14 +289,14 @@ class AutoJobEngine(
 
             if (!jobsFoundInRound && totalProcessed < maxJobs && checkCanProceed()) {
                 onLog(LogLevel.WARN, "Chưa có job mới khả dụng. Tự động chờ 20s quét lại...")
-                com.f4f.autorunner.controller.RunnerController.updateJobInfo("Chưa có job mới, quét lại sau 20s...")
+                onJobInfo("Chưa có job mới, quét lại sau 20s...")
                 cancellableDelay(20)
             }
         }
 
         if (totalProcessed >= maxJobs) {
             onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
-            com.f4f.autorunner.controller.RunnerController.updateJobInfo("Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs job)")
+            onJobInfo("Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs job)")
         }
     }
 
@@ -312,7 +305,7 @@ class AutoJobEngine(
         val reward = job.getRewardInt()
         val jobDesc = "[${job.typeJob.uppercase()}] @${target.removePrefix("@")} (+$reward xu)"
         onLog(LogLevel.INFO, "Job #${job.id} $jobDesc")
-        com.f4f.autorunner.controller.RunnerController.updateJobInfo("$jobDesc")
+        onJobInfo(jobDesc)
 
         if (!checkCanProceed()) return "stopped"
 

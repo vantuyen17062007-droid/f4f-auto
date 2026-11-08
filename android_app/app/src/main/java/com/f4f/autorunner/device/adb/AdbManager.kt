@@ -1,4 +1,4 @@
-package com.f4f.autorunner.adb
+package com.f4f.autorunner.device.adb
 
 import android.content.Context
 import android.os.Build

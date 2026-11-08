@@ -40,7 +40,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/bvp_bold"
-                    android:text="F4F Auto Runner"
+                    android:text="Tn Tool"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp" />
 

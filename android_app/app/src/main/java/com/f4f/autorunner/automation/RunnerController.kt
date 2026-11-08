@@ -1,35 +1,15 @@
-package com.f4f.autorunner.controller
+package com.f4f.autorunner.automation
 
 import android.content.Context
-import com.f4f.autorunner.api.F4FApiClient
-import com.f4f.autorunner.engine.AutoJobEngine
-import com.f4f.autorunner.engine.RunnerStats
+import com.f4f.autorunner.data.api.F4FApiClient
+import com.f4f.autorunner.model.LogEntry
+import com.f4f.autorunner.model.LogLevel
+import com.f4f.autorunner.model.RunnerState
+import com.f4f.autorunner.model.RunnerStats
+import com.f4f.autorunner.service.F4FAccessibilityService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-enum class RunnerState {
-    IDLE,
-    RUNNING,
-    PAUSED,
-    STOPPED
-}
-
-enum class LogLevel {
-    INFO,
-    SUCCESS,
-    WARN,
-    ERROR
-}
-
-data class LogEntry(
-    val timestamp: String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()),
-    val level: LogLevel,
-    val message: String
-)
 
 object RunnerController {
 
@@ -40,7 +20,7 @@ object RunnerController {
     val stats: StateFlow<RunnerStats> = _stats.asStateFlow()
 
     private val _logs = MutableStateFlow<List<LogEntry>>(
-        listOf(LogEntry(level = LogLevel.INFO, message = "F4F AutoRunner v2.0 sẵn sàng."))
+        listOf(LogEntry(level = LogLevel.INFO, message = "Tn Tool sẵn sàng."))
     )
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
@@ -99,6 +79,7 @@ object RunnerController {
         _currentPlatform.value = platform
         _currentJobInfo.value = "Đang khởi động @$accountName..."
         addLog(LogLevel.INFO, "Khởi động chiến dịch [$platform] cho @$accountName...")
+        F4FAccessibilityService.automationActive = true
 
         val appContext = context.applicationContext
         val engine = AutoJobEngine(
@@ -116,11 +97,15 @@ object RunnerController {
             onLog = { level, msg ->
                 addLog(level, msg)
             },
+            onJobInfo = { info ->
+                _currentJobInfo.value = info
+            },
             onStatsUpdated = { newStats ->
                 _stats.value = newStats.copy()
             },
             onFinished = {
                 _state.value = RunnerState.STOPPED
+                F4FAccessibilityService.automationActive = false
                 addLog(LogLevel.INFO, "Phiên chạy đã kết thúc.")
             }
         )
@@ -134,6 +119,7 @@ object RunnerController {
         if (_state.value == RunnerState.RUNNING) {
             _state.value = RunnerState.PAUSED
             activeEngine?.pause()
+            F4FAccessibilityService.automationActive = false
             _currentJobInfo.value = "Đang tạm dừng..."
             addLog(LogLevel.WARN, "Đã tạm dừng (PAUSED). Nhấn Tiếp tục để chạy lại.")
         }
@@ -144,6 +130,7 @@ object RunnerController {
         if (_state.value == RunnerState.PAUSED) {
             _state.value = RunnerState.RUNNING
             activeEngine?.resume()
+            F4FAccessibilityService.automationActive = true
             _currentJobInfo.value = "Đã tiếp tục..."
             addLog(LogLevel.INFO, "Đã tiếp tục phiên chạy (RESUMED).")
         }
@@ -155,6 +142,7 @@ object RunnerController {
             _state.value = RunnerState.STOPPED
             activeEngine?.stop()
             activeEngine = null
+            F4FAccessibilityService.automationActive = false
             _currentJobInfo.value = "Đã dừng phiên chạy."
             addLog(LogLevel.WARN, "Đã dừng phiên chạy khẩn cấp (STOPPED).")
         }

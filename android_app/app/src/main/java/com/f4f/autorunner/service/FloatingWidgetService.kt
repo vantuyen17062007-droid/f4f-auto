@@ -18,11 +18,11 @@ import android.view.*
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.f4f.autorunner.MainActivity
 import com.f4f.autorunner.R
-import com.f4f.autorunner.controller.LogLevel
-import com.f4f.autorunner.controller.RunnerController
-import com.f4f.autorunner.controller.RunnerState
+import com.f4f.autorunner.automation.RunnerController
+import com.f4f.autorunner.model.LogLevel
+import com.f4f.autorunner.model.RunnerState
+import com.f4f.autorunner.ui.MainActivity
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 
@@ -88,7 +88,7 @@ class FloatingWidgetService : Service() {
         try {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "F4F Auto Runner", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL_ID, "Tn Tool", NotificationManager.IMPORTANCE_LOW)
             )
             val openApp = PendingIntent.getActivity(
                 this, 0,
@@ -98,7 +98,7 @@ class FloatingWidgetService : Service() {
             )
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_f_logo)
-                .setContentTitle("F4F Auto Runner")
+                .setContentTitle("Tn Tool")
                 .setContentText("Đang chạy chiến dịch tự động")
                 .setOngoing(true)
                 .setContentIntent(openApp)

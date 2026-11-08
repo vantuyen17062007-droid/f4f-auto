@@ -5,5 +5,5 @@
 }
 
 # Giữ nguyên model Gson khi bật minify (isMinifyEnabled = true)
--keep class com.f4f.autorunner.api.** { *; }
+-keep class com.f4f.autorunner.data.api.** { *; }
 -keep class dadb.** { *; }
