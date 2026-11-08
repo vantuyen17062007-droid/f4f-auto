@@ -203,6 +203,7 @@ class MainActivity : AppCompatActivity() {
         chipFilterSuccess = findViewById(R.id.chip_filter_success)
         chipFilterWarn = findViewById(R.id.chip_filter_warn)
         chipFilterError = findViewById(R.id.chip_filter_error)
+        chipFilterAll.isSelected = true
 
         // Settings
         tvSettingsUsername = findViewById(R.id.tv_settings_username)
