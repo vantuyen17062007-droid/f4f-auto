@@ -150,11 +150,16 @@ object UiXmlParser {
             // Chế độ Trợ Năng: chỉ nhận nút thật sự bấm được, tránh nhầm nhãn thống kê "Following"
             if (requireClickable && !(node.clickable || node.className.contains("Button", ignoreCase = true))) continue
 
-            // Bỏ qua các textview nhãn số liệu thống kê follower/following
+            val rawLabel = node.text.ifEmpty { node.desc }.trim()
+            if (rawLabel.isEmpty() || rawLabel.length > 25) continue
+
+            // Bỏ qua nhãn chứa chữ số (số liệu thống kê người theo dõi / đang follow: ví dụ '100 Đang follow', '1.2M Followers')
+            if (rawLabel.any { it.isDigit() }) continue
+
+            // Bỏ qua các textview nhãn số liệu thống kê follower/following nếu còn sót lại ID cũ
             if (node.resId.endsWith(":id/t9q") || node.resId.endsWith(":id/t9r")) continue
 
-            val label = (node.text.ifEmpty { node.desc }).lowercase()
-            if (label.isEmpty()) continue
+            val label = rawLabel.lowercase()
 
             if (FOLLOWED_LABELS.any { label == it || label.startsWith("$it ") }) {
                 candidates.add(Pair("already", node))
@@ -167,11 +172,20 @@ object UiXmlParser {
 
         // Nếu có Anchor "Nhắn tin", ưu tiên nút nằm cùng hàng ngang
         if (messageAnchorY != null) {
-            for ((state, node) in candidates) {
-                if (kotlin.math.abs(node.centerY - messageAnchorY) <= 80) {
-                    return Pair(state, Point(node.centerX, node.centerY))
-                }
+            val anchorY = messageAnchorY
+            val nearAnchor = candidates.filter { kotlin.math.abs(it.second.centerY - anchorY) <= 90 }
+            if (nearAnchor.isNotEmpty()) {
+                val (state, node) = nearAnchor.first()
+                return Pair(state, Point(node.centerX, node.centerY))
             }
+        }
+
+        // Ưu tiên các nút nằm ở phần trên màn hình (khu vực Profile Header, Y < 55% màn hình)
+        val maxY = nodes.maxOfOrNull { it.bounds.bottom } ?: 2400
+        val headerCandidates = candidates.filter { it.second.centerY < (maxY * 0.55) }
+        if (headerCandidates.isNotEmpty()) {
+            val (state, node) = headerCandidates.first()
+            return Pair(state, Point(node.centerX, node.centerY))
         }
 
         // Nếu không có anchor (hoặc profile không cho nhắn tin), lấy ứng viên đầu tiên hợp lệ
@@ -185,35 +199,52 @@ object UiXmlParser {
 
     /**
      * Nhận diện trạng thái Like video:
-     * Trả về Pair(state: "already" | "liked" | "failed", Point(cx, cy)?)
+     * Trả về Pair(state: "already" | "available" | "failed", Point(cx, cy)?)
      */
     fun findLikeState(nodes: List<UiNode>): Pair<String, Point?> {
-        var likePos: Point? = null
+        if (nodes.isEmpty()) return Pair("failed", null)
+
+        val maxX = nodes.maxOfOrNull { it.bounds.right } ?: 1080
+        val maxY = nodes.maxOfOrNull { it.bounds.bottom } ?: 2400
+
+        var candidateLikePos: Point? = null
         var isAlreadyLiked = false
 
         for (node in nodes) {
-            val desc = (node.desc.ifEmpty { node.text }).lowercase()
+            // Loại bỏ các node quá lớn hoặc quá nhỏ không thể là nút Like
+            if (node.width !in 30..(maxX * 0.45).toInt() || node.height !in 30..(maxY * 0.3).toInt()) continue
+
+            val rawLabel = node.desc.ifEmpty { node.text }.trim()
+            // Bỏ qua các văn bản dài (bình luận, caption video dài)
+            if (rawLabel.length > 25) continue
+
+            val desc = rawLabel.lowercase()
             val resId = node.resId.lowercase()
 
-            val isUnlike = UNLIKE_LABELS.any { desc.contains(it) } ||
-                    ((resId.endsWith(":id/g86") || resId.endsWith(":id/g8m")) && node.selected)
+            // Vị trí: Cột tương tác bên phải (trục X > 55% màn hình) hoặc có resource-id định danh Like
+            val isRightColumn = node.centerX > (maxX * 0.55)
+            val hasLikeId = resId.contains("like") || resId.endsWith(":id/g86") || resId.endsWith(":id/g8m")
 
-            if (isUnlike) {
+            if (!isRightColumn && !hasLikeId) continue
+
+            val matchesUnlike = UNLIKE_LABELS.any { desc == it || desc.startsWith("$it ") || desc.endsWith(" $it") }
+            val matchesLike = LIKE_LABELS.any { desc == it || desc.startsWith("$it ") || desc.endsWith(" $it") }
+
+            // Đã thích nếu: nhãn là bỏ thích/đã thích/unlike/liked, hoặc nút Like đang ở trạng thái selected
+            if (matchesUnlike || (hasLikeId && node.selected) || (node.selected && matchesLike)) {
                 isAlreadyLiked = true
-                likePos = Point(node.centerX, node.centerY)
+                candidateLikePos = Point(node.centerX, node.centerY)
+                break
             }
 
-            val isLikeButton = LIKE_LABELS.any { desc == it } ||
-                    (resId.endsWith(":id/g86") || resId.endsWith(":id/g8m"))
-
-            if (isLikeButton && likePos == null) {
-                likePos = Point(node.centerX, node.centerY)
+            if ((matchesLike || hasLikeId) && candidateLikePos == null) {
+                candidateLikePos = Point(node.centerX, node.centerY)
             }
         }
 
         return when {
-            isAlreadyLiked -> Pair("already", likePos)
-            likePos != null -> Pair("liked", likePos)
+            isAlreadyLiked -> Pair("already", candidateLikePos)
+            candidateLikePos != null -> Pair("available", candidateLikePos)
             else -> Pair("failed", null)
         }
     }

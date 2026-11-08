@@ -46,8 +46,10 @@ class AutoJobEngine(
     private var pkg: String = ""
     private val usernameRegex = Regex("^[A-Za-z0-9_.]{1,64}$")
 
+    @Volatile
     var isRunning = false
         private set
+    @Volatile
     var isPaused = false
         private set
 
@@ -136,7 +138,8 @@ class AutoJobEngine(
 
     private suspend fun snapshot(): List<UiNode> =
         if (AdbManager.isConnected) {
-            UiXmlParser.parseNodes(AdbManager.dumpUiXml())
+            val allNodes = UiXmlParser.parseNodes(AdbManager.dumpUiXml())
+            allNodes.filter { it.packageName.isEmpty() || it.packageName in AppPackages.ALL }
         } else {
             F4FAccessibilityService.instance?.snapshotNodes().orEmpty()
         }
@@ -254,16 +257,21 @@ class AutoJobEngine(
                         "followed", "liked", "already" -> consecutiveErrors = 0
                         "skipped" -> consecutiveErrors++ // stats.skipped đã được tăng trong processJob
                         else -> {
-                            stats.errors++
                             consecutiveErrors++
                         }
                     }
                     onStatsUpdated(stats)
 
-                    if (consecutiveErrors >= 5) {
-                        onLog(LogLevel.WARN, "Gặp 5 job thất bại liên tiếp! Tạm dừng 15s để làm mới...")
+                    if (consecutiveErrors >= 8) {
+                        onLog(
+                            LogLevel.ERROR,
+                            "TỰ ĐỘNG DỪNG (Circuit Breaker): Đã gặp 8 nhiệm vụ lỗi/bỏ qua liên tiếp! Để bảo vệ tài khoản tránh bị checkpoint hoặc TikTok giới hạn hành động, tiến trình tự ngắt."
+                        )
+                        com.f4f.autorunner.controller.RunnerController.updateJobInfo("Dừng do 8 lỗi liên tiếp (Bảo vệ nick)")
+                        break
+                    } else if (consecutiveErrors == 4) {
+                        onLog(LogLevel.WARN, "Gặp 4 job thất bại liên tiếp! Tạm dừng 15s để làm mới...")
                         cancellableDelay(15)
-                        consecutiveErrors = 0
                     }
 
                     // Mô phỏng lướt feed chống checkpoint
@@ -276,7 +284,7 @@ class AutoJobEngine(
 
                     // Delay an toàn giữa các job
                     if (totalProcessed < maxJobs && checkCanProceed()) {
-                        val minD = delayMin.coerceAtLeast(3)
+                        val minD = delayMin.coerceAtLeast(4)
                         val maxD = delayMax.coerceAtLeast(minD)
                         val sleepSec = if (minD == maxD) minD else Random.nextInt(minD, maxD + 1)
                         onLog(LogLevel.INFO, "Nghỉ an toàn ${sleepSec}s trước nhiệm vụ tiếp theo...")
@@ -328,16 +336,24 @@ class AutoJobEngine(
         // ==================== A. XỬ LÝ JOB LIKE ====================
         if (job.typeJob == "like") {
             val nodesBefore = snapshot()
-            val (before, _) = UiXmlParser.findLikeState(nodesBefore)
+            val (before, likeBtnPt) = UiXmlParser.findLikeState(nodesBefore)
             if (before == "already") {
                 state = "already"
             } else {
                 doubleTapCenter()
-                cancellableDelay(1)
-                val nodesAfter = snapshot()
-                val (after, _) = UiXmlParser.findLikeState(nodesAfter)
-                // Nếu giao diện xác nhận đã thích, HOẶC không dump được do video đang phát animation 60fps nhưng đã double-tap thả tim
-                state = if (after == "already" || (nodesAfter.isEmpty() && AdbManager.isConnected)) "liked" else "failed"
+                delay(800)
+                var nodesAfter = snapshot()
+                var (after, _) = UiXmlParser.findLikeState(nodesAfter)
+
+                // Nếu double-tap chưa ăn và có tọa độ nút Tim thì bấm trực tiếp nút Tim
+                if (after != "already" && likeBtnPt != null) {
+                    tap(likeBtnPt.x, likeBtnPt.y)
+                    delay(800)
+                    nodesAfter = snapshot()
+                    after = UiXmlParser.findLikeState(nodesAfter).first
+                }
+
+                state = if (after == "already") "liked" else "failed"
             }
         }
         // ==================== B. XỬ LÝ JOB FOLLOW ====================
@@ -366,30 +382,50 @@ class AutoJobEngine(
         val finalStatus = when (state) {
             "already" -> {
                 onLog(LogLevel.INFO, "Đã thực hiện từ trước -> Nhận thưởng...")
-                stats.already++
-                reportComplete(job)
-                "already"
+                val success = reportComplete(job)
+                if (success) {
+                    stats.already++
+                    "already"
+                } else {
+                    stats.errors++
+                    "failed"
+                }
             }
             "followed" -> {
                 onLog(LogLevel.SUCCESS, "Đã bấm Follow thành công!")
-                stats.followed++
                 cancellableDelay(2)
-                reportComplete(job)
-                "followed"
+                val success = reportComplete(job)
+                if (success) {
+                    stats.followed++
+                    "followed"
+                } else {
+                    stats.errors++
+                    "failed"
+                }
             }
             "liked" -> {
                 onLog(LogLevel.SUCCESS, "Đã bấm Like thành công!")
-                stats.liked++
                 cancellableDelay(2)
-                reportComplete(job)
-                "liked"
+                val success = reportComplete(job)
+                if (success) {
+                    stats.liked++
+                    "liked"
+                } else {
+                    stats.errors++
+                    "failed"
+                }
             }
             "requested" -> {
                 onLog(LogLevel.INFO, "Tài khoản riêng tư (Đã gửi yêu cầu) -> Nhận thưởng...")
-                stats.followed++
                 cancellableDelay(2)
-                reportComplete(job)
-                "followed"
+                val success = reportComplete(job)
+                if (success) {
+                    stats.followed++
+                    "followed"
+                } else {
+                    stats.errors++
+                    "failed"
+                }
             }
             else -> {
                 onLog(LogLevel.WARN, "Không xác minh được tương tác -> Bỏ qua job (không báo hoàn thành)")
@@ -409,8 +445,8 @@ class AutoJobEngine(
         return finalStatus
     }
 
-    private suspend fun reportComplete(job: F4FJob) {
-        if (!checkCanProceed()) return
+    private suspend fun reportComplete(job: F4FJob): Boolean {
+        if (!checkCanProceed()) return false
 
         val retryDelays = listOf(4000L, 8000L)
         for (attempt in 0..2) {
@@ -420,7 +456,7 @@ class AutoJobEngine(
                 stats.coinsEarned += coins
                 onStatsUpdated(stats)
                 onLog(LogLevel.SUCCESS, "Nhận thành công +$coins xu! (Tổng phiên: ~${stats.coinsEarned} xu)")
-                return
+                return true
             } catch (e: Exception) {
                 val isBusy = (e is ApiException && e.statusCode == 400) ||
                         e.message?.contains("đồng bộ") == true ||
@@ -432,9 +468,10 @@ class AutoJobEngine(
                     continue
                 }
                 onLog(LogLevel.ERROR, "Lỗi hoàn thành job: ${e.message}")
-                return
+                return false
             }
         }
+        return false
     }
 
     private suspend fun openTarget(target: String, typeJob: String): Boolean {

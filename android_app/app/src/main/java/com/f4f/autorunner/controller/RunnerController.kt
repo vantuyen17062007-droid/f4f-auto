@@ -60,6 +60,9 @@ object RunnerController {
 
     private var activeEngine: AutoJobEngine? = null
 
+    var sessionStartTimeMs: Long = 0L
+        private set
+
     val isRunning: Boolean
         get() = _state.value == RunnerState.RUNNING
 
@@ -89,6 +92,7 @@ object RunnerController {
 
         stop() // Đảm bảo hủy triệt để engine cũ nếu có
 
+        sessionStartTimeMs = System.currentTimeMillis()
         _state.value = RunnerState.RUNNING
         _stats.value = RunnerStats()
         _currentAccount.value = accountName
@@ -156,6 +160,7 @@ object RunnerController {
         }
     }
 
+    @Synchronized
     fun addLog(level: LogLevel, message: String) {
         android.util.Log.i("RunnerController", "[$level] $message")
         val entry = LogEntry(level = level, message = message)

@@ -240,7 +240,8 @@ class FloatingWidgetService : Service() {
 
             launch {
                 while (isActive) {
-                    val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
+                    val startMs = if (RunnerController.sessionStartTimeMs > 0) RunnerController.sessionStartTimeMs else startTimeMs
+                    val elapsedSec = (System.currentTimeMillis() - startMs) / 1000
                     val hours = elapsedSec / 3600
                     val mins = (elapsedSec % 3600) / 60
                     val stateName = if (RunnerController.isPaused) "Tạm dừng" else "Đang chạy"

@@ -26,9 +26,11 @@ object AdbManager {
     private const val TAG = "AdbManager"
 
     private var dadbInstance: Dadb? = null
+    @Volatile
     var isUsingRoot: Boolean = false
         private set
 
+    @Volatile
     var isConnected: Boolean = false
         private set
 
@@ -81,6 +83,23 @@ object AdbManager {
         targetHost: String = host,
         targetPort: Int = port
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        // Nếu đang kết nối đến đúng host/port và socket vẫn tốt thì giữ nguyên kết nối
+        if (isConnected && targetHost == host && targetPort == port) {
+            val isHealthy = try {
+                if (isUsingRoot) {
+                    checkRoot()
+                } else {
+                    val res = dadbInstance?.shell("echo ok_f4f")
+                    res?.allOutput?.contains("ok_f4f") == true
+                }
+            } catch (_: Exception) {
+                false
+            }
+            if (isHealthy) {
+                return@withContext Pair(true, "ADB đã sẵn sàng ($host:$port)!")
+            }
+        }
+
         host = targetHost
         port = targetPort
         disconnect()

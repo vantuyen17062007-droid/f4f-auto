@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedPlatform = "tiktok"
     private var activeLogFilter: LogLevel? = null
     private var startTimeMs: Long = 0
+    private var lastAccountHealthCheckMs: Long = 0L
     private var userBaseBalance: Int = 0
 
     // Tab Views
@@ -632,7 +633,9 @@ class MainActivity : AppCompatActivity() {
 
         val targetIdx = currentList.indexOfFirst { it.getId() == savedId }.coerceAtLeast(0)
         spAccounts.setSelection(targetIdx)
-        isRestoringSpinnerSelection = false
+        spAccounts.post {
+            isRestoringSpinnerSelection = false
+        }
     }
 
     private fun setPlatformSelection(plat: String) {
@@ -642,7 +645,12 @@ class MainActivity : AppCompatActivity() {
         updateActiveAccountsSpinner()
     }
 
-    private fun checkPlatformAccountsHealth() {
+    private fun checkPlatformAccountsHealth(force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && RunnerController.isRunning) return // Đang chạy auto thì không gọi spam API tài khoản
+        if (!force && (now - lastAccountHealthCheckMs < 30_000L) && (tiktokAccounts.isNotEmpty() || instagramAccounts.isNotEmpty())) return
+        lastAccountHealthCheckMs = now
+
         lifecycleScope.launch {
             if (apiClient.token == null) {
                 tvTiktokConnStatus.text = "Chưa kết nối"
@@ -760,6 +768,15 @@ class MainActivity : AppCompatActivity() {
                         tvHeroSubtitle.text = "Nhấn Bắt đầu để chạy auto"
                         btnDashStart.visibility = View.VISIBLE
                         boxRunningControls.visibility = View.GONE
+
+                        val earned = RunnerController.stats.value.coinsEarned
+                        if (earned > 0) {
+                            userBaseBalance += earned
+                            getSharedPreferences("f4f_config", Context.MODE_PRIVATE).edit()
+                                .putInt("f4f_balance_num", userBaseBalance)
+                                .putString("f4f_balance", "$userBaseBalance xu")
+                                .apply()
+                        }
                     }
                     RunnerState.RUNNING -> {
                         dotHeroStatus.backgroundTintList = ColorStateList.valueOf(col(R.color.status_ok))
@@ -825,8 +842,9 @@ class MainActivity : AppCompatActivity() {
         // 4. Timer updater
         lifecycleScope.launch {
             while (isActive) {
-                if (RunnerController.isRunning && startTimeMs > 0) {
-                    val elapsedSec = (System.currentTimeMillis() - startTimeMs) / 1000
+                val startMs = RunnerController.sessionStartTimeMs
+                if (RunnerController.isRunning && startMs > 0) {
+                    val elapsedSec = (System.currentTimeMillis() - startMs) / 1000
                     val hours = elapsedSec / 3600
                     val mins = (elapsedSec % 3600) / 60
                     tvDashStatTime.text = "${hours}h ${mins}m"
@@ -851,12 +869,14 @@ class MainActivity : AppCompatActivity() {
             logs.filter { it.level == activeLogFilter }
         }
 
+        val displayLogs = if (filtered.size > 80) filtered.takeLast(80) else filtered
+
         val ssb = SpannableStringBuilder()
-        if (filtered.isEmpty()) {
+        if (displayLogs.isEmpty()) {
             ssb.append("Chưa có nhật ký.")
             ssb.setSpan(ForegroundColorSpan(col(R.color.text_muted)), 0, ssb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        for (entry in filtered) {
+        for (entry in displayLogs) {
             // Giờ (mờ) | nhãn mức độ (màu, đậm) | nội dung
             val tsStart = ssb.length
             ssb.append(entry.timestamp.toString())

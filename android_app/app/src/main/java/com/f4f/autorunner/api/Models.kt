@@ -2,6 +2,25 @@ package com.f4f.autorunner.api
 
 import com.google.gson.annotations.SerializedName
 
+fun parseAnyToLong(value: Any?, fallback: Long = 0L): Long {
+    if (value == null) return fallback
+    return when (value) {
+        is Number -> value.toLong()
+        is String -> {
+            val trimmed = value.trim()
+            trimmed.toLongOrNull()
+                ?: trimmed.toDoubleOrNull()?.toLong()
+                ?: trimmed.replace(",", "").toDoubleOrNull()?.toLong()
+                ?: fallback
+        }
+        else -> fallback
+    }
+}
+
+fun parseAnyToInt(value: Any?, fallback: Int = 0): Int {
+    return parseAnyToLong(value, fallback.toLong()).toInt()
+}
+
 data class ApiResponse<T>(
     @SerializedName("status_code") val statusCode: Int = 200,
     @SerializedName("message") val message: String? = null,
@@ -20,13 +39,14 @@ data class UserInfo(
     @SerializedName("balance_pending") val balancePending: Any? = null
 ) {
     fun getDisplayBalance(): String {
-        val raw = balance?.toString() ?: "0"
-        return if (raw.contains("coin") || raw.contains("xu")) raw else "$raw xu"
+        if (balance == null) return "0 xu"
+        if (balance is String && (balance.contains("coin") || balance.contains("xu"))) return balance
+        val num = parseAnyToLong(balance, -1L)
+        return if (num >= 0) "$num xu" else balance.toString()
     }
 
     fun getNumericBalance(): Int {
-        val digits = balance?.toString()?.filter { it.isDigit() }
-        return digits?.toIntOrNull() ?: 0
+        return parseAnyToInt(balance, 0)
     }
 }
 
@@ -59,8 +79,7 @@ data class F4FJob(
     @SerializedName("type_job") var typeJob: String = "follow"
 ) {
     fun getRewardInt(): Int {
-        val digits = rewardAmount?.toString()?.filter { it.isDigit() }
-        return digits?.toIntOrNull() ?: 10
+        return parseAnyToInt(rewardAmount, 10)
     }
 }
 
@@ -68,7 +87,6 @@ data class CompleteJobData(
     @SerializedName("coin_received") val coinReceived: Any? = null
 ) {
     fun getCoinReceivedInt(fallback: Int): Int {
-        val digits = coinReceived?.toString()?.filter { it.isDigit() }
-        return digits?.toIntOrNull() ?: fallback
+        return parseAnyToInt(coinReceived, fallback)
     }
 }
