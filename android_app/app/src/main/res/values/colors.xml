@@ -1,33 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Nền: xanh lục đậm như bàn đếm tiền -->
-    <color name="bg">#0E2F27</color>
-    <color name="surface">#143B31</color>
-    <color name="surface_raised">#1C4A3E</color>
-    <color name="hairline">#245547</color>
-    <color name="hairline_strong">#3A7260</color>
-    <color name="terminal_bg">#0A241E</color>
-    <color name="input_bg">#0E2F27</color>
+    <!-- Nền: Tím Neon / Cyberpunk Dark (Deep Midnight Navy & Dark Violet) -->
+    <color name="bg">#0B0C16</color>
+    <color name="surface">#131424</color>
+    <color name="surface_raised">#1A1C34</color>
+    <color name="hairline">#222444</color>
+    <color name="hairline_strong">#363968</color>
+    <color name="terminal_bg">#090A12</color>
+    <color name="input_bg">#16182E</color>
 
-    <!-- Chữ -->
-    <color name="text_primary">#F1EEDD</color>
-    <color name="text_sub">#A9C4B6</color>
-    <color name="text_muted">#78998B</color>
+    <!-- Chữ (Text) -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_sub">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
 
-    <!-- Điểm nhấn: đồng xu -->
-    <color name="coin">#F4C542</color>
-    <color name="coin_deep">#D9A521</color>
-    <color name="on_coin">#1A1403</color>
+    <!-- Điểm nhấn: Tím Neon / Electric Violet -->
+    <color name="coin">#8B5CF6</color>
+    <color name="coin_deep">#7C3AED</color>
+    <color name="on_coin">#FFFFFF</color>
 
-    <!-- Trạng thái -->
-    <color name="status_ok">#8BE8B0</color>
-    <color name="status_warn">#FFA94D</color>
-    <color name="status_error">#FF7A70</color>
-    <color name="status_info">#7FC8F8</color>
+    <!-- Trạng thái (Status Neon) -->
+    <color name="status_ok">#10B981</color>
+    <color name="status_warn">#F59E0B</color>
+    <color name="status_error">#EF4444</color>
+    <color name="status_info">#38BDF8</color>
 
-    <!-- Lớp phủ trong suốt -->
-    <color name="badge_ok_bg">#2E8BE8B0</color>
-    <color name="badge_off_bg">#2EFF7A70</color>
-    <color name="ripple">#33F1EEDD</color>
-    <color name="scrim_dark">#99081A15</color>
+    <!-- Lớp phủ trong suốt (Translucent overlays) -->
+    <color name="badge_ok_bg">#2E10B981</color>
+    <color name="badge_off_bg">#2EEF4444</color>
+    <color name="ripple">#338B5CF6</color>
+    <color name="scrim_dark">#990B0C16</color>
+
+    <!-- Legacy Compatibility Aliases -->
+    <color name="bg_dark">#0B0C16</color>
+    <color name="bg_card">#131424</color>
+    <color name="primary_purple">#7C3AED</color>
+    <color name="card_stroke">#222444</color>
 </resources>

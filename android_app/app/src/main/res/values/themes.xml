@@ -20,7 +20,7 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_sub</item>
         <item name="android:textColorHint">@color/text_muted</item>
-        <item name="android:textColorHighlight">#55F4C542</item>
+        <item name="android:textColorHighlight">#558B5CF6</item>
 
         <item name="android:fontFamily">@font/f4f_font</item>
         <item name="fontFamily">@font/f4f_font</item>
@@ -94,7 +94,7 @@
     </style>
 
     <style name="F4F.Text.RowSub" parent="android:TextAppearance">
-        <item name="android:textSize">12.5sp</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/text_sub</item>
         <item name="android:fontFamily">@font/f4f_font</item>
     </style>
@@ -131,7 +131,7 @@
         <item name="cornerRadius">14dp</item>
         <item name="iconTint">@color/on_coin</item>
         <item name="iconPadding">8dp</item>
-        <item name="rippleColor">#33000000</item>
+        <item name="rippleColor">#33FFFFFF</item>
     </style>
 
     <style name="Widget.F4F.Button.Outline" parent="Widget.MaterialComponents.Button.OutlinedButton">
