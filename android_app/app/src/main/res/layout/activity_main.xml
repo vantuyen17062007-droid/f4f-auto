@@ -291,7 +291,7 @@
                 <TextView style="@style/F4F.Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32dp" android:text="Chế độ điều khiển" />
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_group" android:orientation="vertical">
 
-                    <LinearLayout android:id="@+id/row_mode_auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_row_select" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:minHeight="72dp" android:orientation="horizontal" android:padding="16dp" android:selected="true">
+                    <LinearLayout android:id="@+id/row_mode_auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_row_select" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:minHeight="72dp" android:orientation="horizontal" android:padding="16dp">
                         <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_bolt" app:tint="@color/text_sub" />
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:layout_weight="1" android:orientation="vertical">
                             <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tự động (khuyên dùng)" />

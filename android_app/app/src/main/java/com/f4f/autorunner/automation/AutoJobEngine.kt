@@ -489,8 +489,8 @@ class AutoJobEngine(
             }
         }
 
-        // Nếu là job FOLLOW thì BACK về trang chủ, còn LIKE thì KHÔNG back
-        if (job.typeJob == "follow" && checkCanProceed()) {
+        // Nếu là job FOLLOW thì BACK về trang chủ 1 lần, còn LIKE thì KHÔNG back
+        if (job.typeJob.equals("follow", ignoreCase = true) && checkCanProceed()) {
             navigateBackHome()
         }
 

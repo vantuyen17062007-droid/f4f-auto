@@ -207,48 +207,62 @@ class TikTokJobRunner(BaseJobRunner):
             verify_timeout=self.cfg.get("verify_timeout", 3),
         )
 
+        res = "skipped"
         if state == "already":
             self.log.info(f"  {YELLOW}ℹ Đã follow từ trước! Nhận thưởng...{RESET}")
-            return self._report_success(
+            res = self._report_success(
                 job_id, reward, "already", "already",
                 type_job="follow", object_id=object_id,
             )
 
-        if state == "clicked":
+        elif state == "clicked":
             self.log.info(f"  {GREEN}✓ Đã follow thành công!{RESET}")
-            return self._report_success(
+            res = self._report_success(
                 job_id, reward, "followed", "followed",
                 type_job="follow", object_id=object_id,
             )
 
-        if state == "click_unverified":
+        elif state == "click_unverified":
             # UI có thể cập nhật chậm; kiểm tra thêm một lần trước khi kết luận.
             time.sleep(2.0)
             recheck, _ = self.adb.get_follow_state(package=self.package_name)
             if recheck in ("followed", "requested"):
                 self.log.info(f"  {GREEN}✓ Đã follow thành công (xác minh lại)!{RESET}")
-                return self._report_success(
+                res = self._report_success(
                     job_id, reward, "followed", "followed",
                     type_job="follow", object_id=object_id,
                 )
-            self.log.warning(
-                f"  {RED}✗ Đã bấm Follow nhưng chưa xác minh được -> Bỏ qua job{RESET}"
-            )
-            self.stats["skipped"] += 1
-            self._skip(job, "follow_unverified")
-            return "skipped"
+            else:
+                self.log.warning(
+                    f"  {RED}✗ Đã bấm Follow nhưng chưa xác minh được -> Bỏ qua job{RESET}"
+                )
+                self.stats["skipped"] += 1
+                self._skip(job, "follow_unverified")
+                res = "skipped"
 
-        if state == "requested":
+        elif state == "requested":
             self.log.info(f"  {YELLOW}ℹ Tài khoản riêng tư (Đã gửi yêu cầu theo dõi)! Nhận thưởng...{RESET}")
-            return self._report_success(
+            res = self._report_success(
                 job_id, reward, "followed", "followed",
                 type_job="follow", object_id=object_id,
             )
 
-        self.log.warning(f"  {RED}✗ Không tìm thấy nút follow (state={state}) -> Bỏ qua job{RESET}")
-        self.stats["skipped"] += 1
-        self._skip(job, f"state_{state}")
-        return "skipped"
+        else:
+            self.log.warning(f"  {RED}✗ Không tìm thấy nút follow (state={state}) -> Bỏ qua job{RESET}")
+            self.stats["skipped"] += 1
+            self._skip(job, f"state_{state}")
+            res = "skipped"
+
+        # Follow thì back 1 lần để thoát trang profile
+        self._back_home()
+        return res
+
+    def _back_home(self):
+        """Quay lại sau khi tương tác xong profile để dọn dẹp activity stack."""
+        try:
+            self.adb.back()
+        except Exception:
+            pass
 
     def _do_like(self, job: Dict[str, Any]) -> str:
         """Thực hiện job Like video TikTok."""
