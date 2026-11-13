@@ -57,6 +57,8 @@ class InstagramJobRunner(BaseJobRunner):
             self.account_id = chosen.get("id")
             self.cfg["instagram_username"] = self.username
             self.log.info(f"{GREEN}✓ Tự động chọn tài khoản Instagram:{RESET} {CYAN}@{self.username}{RESET} (ID: {self.account_id})")
+            if saved_user != self.username:
+                save_config(self.cfg)
             return
 
         # 2. Nếu có nhiều tài khoản -> Hiển thị menu chọn
@@ -202,11 +204,21 @@ class InstagramJobRunner(BaseJobRunner):
 
         if state == "already":
             self.log.info(f"  {YELLOW}ℹ Đã follow @{object_id} từ trước! Nhận thưởng...{RESET}")
-            return self._report_success(job_id, reward, "already", "already", object_id)
+            time.sleep(random.uniform(1.0, 2.0))
+            res = self._report_success(job_id, reward, "already", "already", object_id)
+            self._back_home()
+            return res
 
         if state == "clicked":
             self.log.info(f"  {GREEN}✓ Đã bấm Follow @{object_id} thành công!{RESET}")
-            return self._report_success(job_id, reward, "followed", "followed", object_id)
+            sync_delay = float(self.cfg.get("instagram_sync_delay", 10))
+            self.log.info(
+                f"  ⏳ Chờ {sync_delay:.0f}s để Instagram đồng bộ trạng thái follow lên hệ thống..."
+            )
+            time.sleep(sync_delay)
+            res = self._report_success(job_id, reward, "followed", "followed", object_id)
+            self._back_home()
+            return res
 
         if state == "click_unverified":
             # UI Instagram có thể cập nhật chậm; kiểm tra thêm một lần.
@@ -214,22 +226,45 @@ class InstagramJobRunner(BaseJobRunner):
             recheck, _ = self.adb.get_follow_state(package=self.package_name)
             if recheck in ("followed", "requested"):
                 self.log.info(f"  {GREEN}✓ Đã bấm Follow thành công (xác minh lại)!{RESET}")
-                return self._report_success(job_id, reward, "followed", "followed", object_id)
+                sync_delay = float(self.cfg.get("instagram_sync_delay", 10))
+                self.log.info(
+                    f"  ⏳ Chờ {sync_delay:.0f}s để Instagram đồng bộ trạng thái follow lên hệ thống..."
+                )
+                time.sleep(sync_delay)
+                res = self._report_success(job_id, reward, "followed", "followed", object_id)
+                self._back_home()
+                return res
             self.log.warning(
                 f"  {RED}✗ Đã bấm Follow nhưng chưa xác minh được -> Bỏ qua job{RESET}"
             )
             self.stats["skipped"] += 1
             self._skip(job_id, object_id, "follow_unverified")
+            self._back_home()
             return "skipped"
 
         if state == "requested":
             self.log.info(f"  {YELLOW}ℹ Tài khoản riêng tư (Đã gửi yêu cầu theo dõi)! Nhận thưởng...{RESET}")
-            return self._report_success(job_id, reward, "followed", "followed", object_id)
+            sync_delay = float(self.cfg.get("instagram_sync_delay", 10))
+            self.log.info(
+                f"  ⏳ Chờ {sync_delay:.0f}s để Instagram đồng bộ trạng thái follow lên hệ thống..."
+            )
+            time.sleep(sync_delay)
+            res = self._report_success(job_id, reward, "followed", "followed", object_id)
+            self._back_home()
+            return res
 
         self.log.warning(f"  {RED}✗ Không tìm thấy nút Follow hoặc trang lỗi (state={state}) -> Bỏ qua job{RESET}")
         self.stats["skipped"] += 1
         self._skip(job_id, object_id, f"state_{state}")
+        self._back_home()
         return "skipped"
+
+    def _back_home(self):
+        """Quay lại sau khi tương tác xong profile để dọn dẹp activity stack."""
+        try:
+            self.adb.back()
+        except Exception:
+            pass
 
     def _report_success(
         self, job_id: int, reward: int, stat_key: str, result: str, object_id: str
@@ -256,8 +291,12 @@ class InstagramJobRunner(BaseJobRunner):
         busy_hints = (
             "đang bận", "hệ thống bận", "đồng bộ",
             "busy", "try again", "sync",
+            "thử lại", "chưa làm", "quá nhanh",
         )
-        retry_delays = (10, 30)
+        permanent_fail_hints = (
+            "không đạt", "không nhận lại được", "đã bỏ qua", "hết hạn", "không tồn tại"
+        )
+        retry_delays = (6, 12)
 
         for attempt in range(retries + 1):
             try:
@@ -275,11 +314,14 @@ class InstagramJobRunner(BaseJobRunner):
             except Exception as e:
                 message = str(e)
                 is_400 = "400" in message
-                is_transient = is_400 and any(hint in message.lower() for hint in busy_hints)
+                is_permanent = any(hint in message.lower() for hint in permanent_fail_hints)
+                is_transient = is_400 and not is_permanent and (
+                    any(hint in message.lower() for hint in busy_hints)
+                )
                 if is_transient and attempt < retries:
                     wait = retry_delays[min(attempt, len(retry_delays) - 1)]
                     self.log.warning(
-                        f"  -> F4F đang kiểm tra/đồng bộ dữ liệu Instagram, thử lại sau {wait}s..."
+                        f"  -> F4F đang kiểm tra/đồng bộ dữ liệu Instagram ({message}), thử lại sau {wait}s..."
                     )
                     time.sleep(wait)
                     continue

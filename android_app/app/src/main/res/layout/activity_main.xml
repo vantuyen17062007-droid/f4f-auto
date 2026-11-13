@@ -287,6 +287,40 @@
                     <com.google.android.material.button.MaterialButton android:id="@+id/btn_logout" style="@style/Widget.F4F.Button.Small" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Đổi tài khoản" />
                 </LinearLayout>
 
+                <!-- Chế độ điều khiển -->
+                <TextView style="@style/F4F.Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32dp" android:text="Chế độ điều khiển" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_group" android:orientation="vertical">
+
+                    <LinearLayout android:id="@+id/row_mode_auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_row_select" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:minHeight="72dp" android:orientation="horizontal" android:padding="16dp" android:selected="true">
+                        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_bolt" app:tint="@color/text_sub" />
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:layout_weight="1" android:orientation="vertical">
+                            <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tự động (khuyên dùng)" />
+                            <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Ưu tiên ADB nếu đã kết nối, không thì dùng Trợ Năng" />
+                        </LinearLayout>
+                        <ImageView android:id="@+id/iv_mode_auto_radio" android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_radio_on" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/hairline" />
+
+                    <LinearLayout android:id="@+id/row_mode_adb" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_row_select" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:minHeight="72dp" android:orientation="horizontal" android:padding="16dp">
+                        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_usb" app:tint="@color/text_sub" />
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:layout_weight="1" android:orientation="vertical">
+                            <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Chỉ dùng ADB" />
+                            <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Ổn định nhất, cần kết nối ADB mỗi lần chạy" />
+                        </LinearLayout>
+                        <ImageView android:id="@+id/iv_mode_adb_radio" android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_radio_off" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:background="@color/hairline" />
+
+                    <LinearLayout android:id="@+id/row_mode_accessibility" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_row_select" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:minHeight="72dp" android:orientation="horizontal" android:padding="16dp">
+                        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_accessibility" app:tint="@color/text_sub" />
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:layout_weight="1" android:orientation="vertical">
+                            <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Chỉ dùng Trợ Năng" />
+                            <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Không cần máy tính, chạy được mọi lúc trên điện thoại" />
+                        </LinearLayout>
+                        <ImageView android:id="@+id/iv_mode_accessibility_radio" android:layout_width="22dp" android:layout_height="22dp" android:importantForAccessibility="no" android:src="@drawable/ic_radio_off" />
+                    </LinearLayout>
+                </LinearLayout>
+
                 <!-- ADB -->
                 <TextView style="@style/F4F.Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32dp" android:text="Điều khiển bằng ADB" />
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_group" android:orientation="vertical">

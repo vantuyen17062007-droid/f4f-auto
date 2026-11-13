@@ -60,6 +60,7 @@ object RunnerController {
         accountId: Long,
         accountName: String,
         jobType: String = "all",
+        controlMode: String = "auto", // "auto" | "adb" | "accessibility"
         maxJobs: Int = 50,
         delayMin: Int = 8,
         delayMax: Int = 18,
@@ -89,6 +90,7 @@ object RunnerController {
             accountId = accountId,
             accountName = accountName,
             jobType = jobType,
+            controlMode = controlMode,
             maxJobs = maxJobs,
             delayMin = delayMin,
             delayMax = delayMax,

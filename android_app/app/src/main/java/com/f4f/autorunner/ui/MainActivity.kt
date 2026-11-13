@@ -119,6 +119,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnAdbDisconnect: Button
     private lateinit var tvAdbGuide: TextView
 
+    // Control Mode Views in Settings
+    private lateinit var rowModeAuto: View
+    private lateinit var rowModeAdb: View
+    private lateinit var rowModeAccessibility: View
+    private lateinit var ivModeAutoRadio: ImageView
+    private lateinit var ivModeAdbRadio: ImageView
+    private lateinit var ivModeAccessibilityRadio: ImageView
+
     // Overlay Views
     private lateinit var cardAccessibility: View
     private lateinit var tvAccessibilityBadge: TextView
@@ -158,6 +166,7 @@ class MainActivity : AppCompatActivity() {
         updateAdbUiState()
         updateOverlayPermissionUi()
         updateAccessibilityUi()
+        updateControlModeUi(controlMode())
         checkPlatformAccountsHealth()
     }
 
@@ -225,6 +234,14 @@ class MainActivity : AppCompatActivity() {
         btnAdbConnect = findViewById(R.id.btn_adb_connect)
         btnAdbDisconnect = findViewById(R.id.btn_adb_disconnect)
         tvAdbGuide = findViewById(R.id.tv_adb_guide)
+
+        // Control Mode Views
+        rowModeAuto = findViewById(R.id.row_mode_auto)
+        rowModeAdb = findViewById(R.id.row_mode_adb)
+        rowModeAccessibility = findViewById(R.id.row_mode_accessibility)
+        ivModeAutoRadio = findViewById(R.id.iv_mode_auto_radio)
+        ivModeAdbRadio = findViewById(R.id.iv_mode_adb_radio)
+        ivModeAccessibilityRadio = findViewById(R.id.iv_mode_accessibility_radio)
 
         // Overlay Views
         cardAccessibility = findViewById(R.id.card_accessibility)
@@ -476,14 +493,13 @@ class MainActivity : AppCompatActivity() {
             RunnerController.addLog(LogLevel.WARN, "Đã ngắt kết nối ADB.")
         }
 
-        // Trợ Năng: mở thẳng màn hình cài đặt Trợ Năng của hệ thống
-        cardAccessibility.setOnClickListener {
-            try {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            } catch (e: Exception) {
-                Toast.makeText(this, "Không thể mở cài đặt Trợ Năng: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
+        // Trợ Năng: hiện hướng dẫn 4 bước trước khi mở cài đặt hệ thống
+        cardAccessibility.setOnClickListener { showAccessibilityGuideDialog() }
+
+        rowModeAuto.setOnClickListener { selectControlMode("auto") }
+        rowModeAdb.setOnClickListener { selectControlMode("adb") }
+        rowModeAccessibility.setOnClickListener { selectControlMode("accessibility") }
+        updateControlModeUi(controlMode())
 
         // Overlay Listeners
         cardOverlayPermission.setOnClickListener {
@@ -574,6 +590,47 @@ class MainActivity : AppCompatActivity() {
             tvAccessibilityBadge.setBackgroundResource(R.drawable.bg_badge_off)
             tvAccessibilityDesc.text = "Chạm để bật, cho phép app tự bấm Follow và Like"
         }
+    }
+
+    private fun controlMode(): String = taskPrefs().getString("control_mode", "auto") ?: "auto"
+
+    private fun selectControlMode(mode: String) {
+        taskPrefs().edit().putString("control_mode", mode).apply()
+        updateControlModeUi(mode)
+
+        // Chọn "Chỉ dùng Trợ Năng" mà dịch vụ chưa bật -> gợi ý bật ngay, tránh người dùng bấm Bắt đầu rồi mới biết
+        if (mode == "accessibility" && !F4FAccessibilityService.isRunning()) {
+            showAccessibilityGuideDialog()
+        }
+    }
+
+    private fun updateControlModeUi(mode: String) {
+        rowModeAuto.isSelected = mode == "auto"
+        rowModeAdb.isSelected = mode == "adb"
+        rowModeAccessibility.isSelected = mode == "accessibility"
+        ivModeAutoRadio.setImageResource(if (mode == "auto") R.drawable.ic_radio_on else R.drawable.ic_radio_off)
+        ivModeAdbRadio.setImageResource(if (mode == "adb") R.drawable.ic_radio_on else R.drawable.ic_radio_off)
+        ivModeAccessibilityRadio.setImageResource(if (mode == "accessibility") R.drawable.ic_radio_on else R.drawable.ic_radio_off)
+    }
+
+    /** Hộp thoại 4 bước hướng dẫn bật Trợ Năng, trước khi mở màn hình cài đặt hệ thống. */
+    private fun showAccessibilityGuideDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_accessibility_guide, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(view)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(R.drawable.bg_dialog)
+
+        view.findViewById<View>(R.id.btn_guide_open_settings).setOnClickListener {
+            dialog.dismiss()
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (e: Exception) {
+                Toast.makeText(this, "Không thể mở cài đặt Trợ Năng: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        view.findViewById<View>(R.id.btn_guide_later).setOnClickListener { dialog.dismiss() }
+        dialog.show()
     }
 
     private fun updateAdbUiState() {
@@ -915,21 +972,35 @@ class MainActivity : AppCompatActivity() {
     private fun startRunner() {
         val hasAdb = AdbManager.isConnected
         val hasAccessibility = F4FAccessibilityService.isRunning()
+        val mode = controlMode()
+        val modeOk = when (mode) {
+            "adb" -> hasAdb
+            "accessibility" -> hasAccessibility
+            else -> hasAdb || hasAccessibility
+        }
 
-        if (!hasAdb && !hasAccessibility) {
-            AlertDialog.Builder(this)
-                .setTitle("Chưa có chế độ điều khiển")
-                .setMessage("Cần bật dịch vụ Trợ Năng 'Tn Tool' hoặc kết nối ADB để app tự bấm Follow/Like.")
-                .setPositiveButton("Mở cài đặt Trợ Năng") { _, _ ->
-                    try {
-                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    } catch (e: Exception) {
-                        Toast.makeText(this, "Không thể mở cài đặt Trợ Năng: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                .setNeutralButton("Cài đặt ADB") { _, _ -> bottomNav.selectedItemId = R.id.nav_settings }
-                .setNegativeButton("Hủy", null)
-                .show()
+        if (!modeOk) {
+            when (mode) {
+                "adb" -> AlertDialog.Builder(this)
+                    .setTitle("Chưa kết nối ADB")
+                    .setMessage("Bạn đang chọn chế độ 'Chỉ dùng ADB' trong Cài đặt nhưng chưa kết nối. Vào Cài đặt để kết nối ADB, hoặc đổi sang chế độ Tự động/Trợ Năng.")
+                    .setPositiveButton("Vào Cài đặt") { _, _ -> bottomNav.selectedItemId = R.id.nav_settings }
+                    .setNegativeButton("Hủy", null)
+                    .show()
+                "accessibility" -> AlertDialog.Builder(this)
+                    .setTitle("Chưa bật Trợ Năng")
+                    .setMessage("Bạn đang chọn chế độ 'Chỉ dùng Trợ Năng' nhưng dịch vụ chưa bật.")
+                    .setPositiveButton("Xem hướng dẫn") { _, _ -> showAccessibilityGuideDialog() }
+                    .setNegativeButton("Hủy", null)
+                    .show()
+                else -> AlertDialog.Builder(this)
+                    .setTitle("Chưa có chế độ điều khiển")
+                    .setMessage("Cần bật dịch vụ Trợ Năng 'Tn Tool' hoặc kết nối ADB để app tự bấm Follow/Like.")
+                    .setPositiveButton("Xem hướng dẫn Trợ Năng") { _, _ -> showAccessibilityGuideDialog() }
+                    .setNeutralButton("Cài đặt ADB") { _, _ -> bottomNav.selectedItemId = R.id.nav_settings }
+                    .setNegativeButton("Hủy", null)
+                    .show()
+            }
             return
         }
 
@@ -985,6 +1056,7 @@ class MainActivity : AppCompatActivity() {
             accountId = selectedAccount.getId(),
             accountName = selectedAccount.getDisplayName(),
             jobType = selectedJobType,
+            controlMode = mode,
             maxJobs = maxJobs,
             delayMin = delayMin,
             delayMax = delayMax

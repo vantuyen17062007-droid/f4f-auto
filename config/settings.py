@@ -53,6 +53,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "delay_max": 18,
     "profile_load_timeout": 8,
     "verify_timeout": 3,
+    "instagram_sync_delay": 10,
     "human_behavior": True,
     "human_behavior_every_n_jobs": 5,
     "human_behavior_scroll_times": 2,

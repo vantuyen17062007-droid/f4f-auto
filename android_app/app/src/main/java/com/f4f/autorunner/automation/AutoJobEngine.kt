@@ -23,6 +23,7 @@ class AutoJobEngine(
     private val accountId: Long,
     private val accountName: String,
     private val jobType: String = "all",
+    private val controlMode: String = "auto", // "auto" | "adb" | "accessibility"
     private val maxJobs: Int = 50,
     private val delayMin: Int = 8,
     private val delayMax: Int = 18,
@@ -35,6 +36,11 @@ class AutoJobEngine(
 ) {
     private var jobScope: CoroutineScope? = null
     val stats = RunnerStats()
+
+    // Hàng đợi job đã lấy sẵn từ F4F trong lúc đang nghỉ giữa 2 job, để lúc xử lý job kế tiếp
+    // không phải chờ round-trip gọi API nữa. KHÔNG rút ngắn delay anti-ban, chỉ tận dụng thời gian nghỉ sẵn có.
+    private val prefetchedJobs = ArrayDeque<Pair<String, F4FJob>>()
+    private var prefetchDeferred: Deferred<Unit?>? = null
     private var jobsSinceHuman = 0
     private var pkg: String = ""
     private val usernameRegex = Regex("^[A-Za-z0-9_.]{1,64}$")
@@ -56,9 +62,19 @@ class AutoJobEngine(
             try {
                 val hasAdb = AdbManager.isConnected
                 val hasAccessibility = F4FAccessibilityService.isRunning()
+                val modeOk = when (controlMode) {
+                    "adb" -> hasAdb
+                    "accessibility" -> hasAccessibility
+                    else -> hasAdb || hasAccessibility
+                }
 
-                if (!hasAdb && !hasAccessibility) {
-                    onLog(LogLevel.ERROR, "Chưa kết nối ADB và chưa bật Trợ Năng F4F! Vui lòng vào Cài đặt để kết nối ADB hoặc bật Trợ Năng.")
+                if (!modeOk) {
+                    val msg = when (controlMode) {
+                        "adb" -> "Bạn đang chọn chế độ 'Chỉ dùng ADB' nhưng chưa kết nối ADB. Vào Cài đặt để kết nối."
+                        "accessibility" -> "Bạn đang chọn chế độ 'Chỉ dùng Trợ Năng' nhưng dịch vụ chưa bật. Vào Cài đặt để bật."
+                        else -> "Chưa kết nối ADB và chưa bật Trợ Năng Tn Tool! Vui lòng vào Cài đặt để kết nối ADB hoặc bật Trợ Năng."
+                    }
+                    onLog(LogLevel.ERROR, msg)
                     return@launch
                 }
 
@@ -69,11 +85,12 @@ class AutoJobEngine(
                     return@launch
                 }
 
-                if (hasAdb) {
-                    onLog(LogLevel.INFO, "Chế độ điều khiển: ADB (ổn định nhất)")
-                } else {
-                    onLog(LogLevel.INFO, "Chế độ điều khiển: Trợ Năng (dự phòng)")
+                val modeLabel = when {
+                    useAdb() -> "ADB (ổn định nhất)"
+                    hasAccessibility -> "Trợ Năng (Accessibility)"
+                    else -> "Không xác định"
                 }
+                onLog(LogLevel.INFO, "Chế độ điều khiển hoạt động: $modeLabel (chọn: $controlMode)")
 
                 runJobLoop()
             } catch (_: CancellationException) {
@@ -103,6 +120,8 @@ class AutoJobEngine(
     fun stop() {
         isRunning = false
         isPaused = false
+        prefetchDeferred?.cancel()
+        prefetchedJobs.clear()
         jobScope?.cancel()
         jobScope = null
     }
@@ -129,8 +148,20 @@ class AutoJobEngine(
 
     // ============================ Hàm dùng chung ADB / Trợ Năng ============================
 
+    /**
+     * Có dùng ADB cho hành động hiện tại không.
+     * - mode "adb": dùng ADB nếu đang kết nối.
+     * - mode "accessibility": luôn false, dù ADB có đang kết nối cũng không dùng.
+     * - mode "auto": ưu tiên ADB nếu đang kết nối tại thời điểm gọi.
+     */
+    private fun useAdb(): Boolean = when (controlMode) {
+        "adb" -> AdbManager.isConnected
+        "accessibility" -> false
+        else -> AdbManager.isConnected
+    }
+
     private suspend fun snapshot(): List<UiNode> =
-        if (AdbManager.isConnected) {
+        if (useAdb()) {
             val allNodes = UiXmlParser.parseNodes(AdbManager.dumpUiXml())
             allNodes.filter { it.packageName.isEmpty() || it.packageName in AppPackages.ALL }
         } else {
@@ -138,7 +169,7 @@ class AutoJobEngine(
         }
 
     private suspend fun tap(x: Int, y: Int) {
-        if (AdbManager.isConnected) {
+        if (useAdb()) {
             AdbManager.tap(x, y)
         } else {
             F4FAccessibilityService.instance?.tapAt(x, y)
@@ -146,7 +177,7 @@ class AutoJobEngine(
     }
 
     private suspend fun doubleTapCenter() {
-        if (AdbManager.isConnected) {
+        if (useAdb()) {
             AdbManager.likeCenter()
         } else {
             val cx = AdbManager.screenWidth / 2
@@ -161,7 +192,7 @@ class AutoJobEngine(
         delay(800)
     }
 
-    private fun followNeedsClickable() = !AdbManager.isConnected
+    private fun followNeedsClickable() = !useAdb()
 
     /** Sau khi bấm Follow: đợi, đóng popup, đọc lại giao diện để XÁC MINH đã follow thật. */
     private suspend fun verifyFollowed(hadTargetPoint: Boolean = false): String {
@@ -222,7 +253,7 @@ class AutoJobEngine(
                 if (!checkCanProceed() || totalProcessed >= maxJobs) break
 
                 val jobs = try {
-                    apiClient.getJobs(platform, accountName, typeJob = tJob)
+                    takePrefetchedOrFetch(tJob)
                 } catch (e: Exception) {
                     if (e is ApiException && e.statusCode == 401) {
                         onLog(LogLevel.ERROR, "Phiên đăng nhập F4F hết hạn hoặc sai mật khẩu. Hãy đăng nhập lại rồi chạy tiếp.")
@@ -282,6 +313,9 @@ class AutoJobEngine(
                         val sleepSec = if (minD == maxD) minD else Random.nextInt(minD, maxD + 1)
                         onLog(LogLevel.INFO, "Nghỉ an toàn ${sleepSec}s trước nhiệm vụ tiếp theo...")
                         onJobInfo("Chờ ${sleepSec}s trước job tiếp theo...")
+                        // Tranh thủ khoảng nghỉ (vốn đã có sẵn vì lý do anti-ban) để âm thầm lấy trước
+                        // job kế tiếp từ F4F, để lúc hết nghỉ xử lý ngay, khỏi chờ round-trip API.
+                        startPrefetch(tJob)
                         cancellableDelay(sleepSec)
                     }
                 }
@@ -297,6 +331,31 @@ class AutoJobEngine(
         if (totalProcessed >= maxJobs) {
             onLog(LogLevel.SUCCESS, "Hoàn tất phiên chạy! Tổng nhận: ~${stats.coinsEarned} xu.")
             onJobInfo("Đã hoàn thành mục tiêu ($totalProcessed/$maxJobs job)")
+        }
+    }
+
+    /** Lấy job đã prefetch sẵn cho [tJob] nếu có; nếu không, gọi API như bình thường. */
+    private suspend fun takePrefetchedOrFetch(tJob: String): List<F4FJob> {
+        val cached = prefetchedJobs.firstOrNull { it.first == tJob }
+        if (cached != null) {
+            prefetchedJobs.remove(cached)
+            return listOf(cached.second)
+        }
+        return apiClient.getJobs(platform, accountName, typeJob = tJob)
+    }
+
+    /** Âm thầm gọi API lấy job kế tiếp trong lúc đang cancellableDelay() chờ an toàn. Không ảnh hưởng tới nhịp job thật. */
+    private fun startPrefetch(tJob: String) {
+        if (prefetchedJobs.any { it.first == tJob }) return
+        prefetchDeferred?.cancel()
+        prefetchDeferred = jobScope?.async {
+            try {
+                apiClient.getJobs(platform, accountName, typeJob = tJob).firstOrNull()?.let {
+                    prefetchedJobs.addLast(tJob to it)
+                }
+            } catch (_: Exception) {
+                // Lấy trước thất bại thì thôi, vòng lặp chính sẽ tự gọi API lại như bình thường
+            }
         }
     }
 
@@ -359,7 +418,7 @@ class AutoJobEngine(
                     tap(pt.x, pt.y)
                     verifyFollowed(hadTargetPoint = true)
                 }
-                AdbManager.isConnected -> {
+                useAdb() -> {
                     // Không đọc được giao diện: thử tọa độ chuẩn nhưng vẫn phải xác minh lại
                     onLog(LogLevel.INFO, "Dùng tọa độ chuẩn để bấm Follow...")
                     AdbManager.followTikTokHeuristic()
@@ -488,8 +547,8 @@ class AutoJobEngine(
             return false
         }
 
-        // Ưu tiên mở qua ADB nếu kết nối
-        if (AdbManager.isConnected) {
+        // Ưu tiên mở qua ADB nếu kết nối và chế độ cho phép
+        if (useAdb()) {
             try {
                 AdbManager.openUrl(url, pkg)
                 return true
@@ -511,7 +570,7 @@ class AutoJobEngine(
 
     private suspend fun triggerAntiBan() {
         try {
-            if (AdbManager.isConnected) {
+            if (useAdb()) {
                 repeat(antiBanScrollTimes) {
                     AdbManager.swipeFeed()
                     delay(1200)
@@ -531,7 +590,7 @@ class AutoJobEngine(
     private suspend fun navigateBackHome() {
         try {
             delay(500)
-            if (AdbManager.isConnected) {
+            if (useAdb()) {
                 // Nhấn Back 1 lần để thoát trang cá nhân trở về trang trước của TikTok/Instagram
                 AdbManager.keyevent(4)
             } else if (F4FAccessibilityService.isRunning()) {

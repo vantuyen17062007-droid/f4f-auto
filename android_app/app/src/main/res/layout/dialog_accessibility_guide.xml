@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxHeight="520dp"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_accessibility"
+                app:tint="@color/coin" />
+
+            <TextView
+                style="@style/F4F.Text.Title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="Bật Trợ Năng cho Tn Tool" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/F4F.Text.RowSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="2dp"
+            android:text="Trợ Năng cho phép app đọc nội dung màn hình TikTok/Instagram để tự nhận biết nút Follow, Like và tự bấm thay bạn. Làm theo 4 bước dưới đây:" />
+
+        <!-- Bước 1 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="horizontal">
+            <TextView android:layout_width="28dp" android:layout_height="28dp" android:background="@drawable/bg_step_number" android:fontFamily="@font/bvp_bold" android:gravity="center" android:text="1" android:textColor="@color/coin" android:textSize="13sp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mở Cài đặt Trợ Năng" />
+                <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Nhấn nút bên dưới, Android sẽ tự mở đúng màn hình Trợ Năng (Accessibility)." />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bước 2 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:orientation="horizontal">
+            <TextView android:layout_width="28dp" android:layout_height="28dp" android:background="@drawable/bg_step_number" android:fontFamily="@font/bvp_bold" android:gravity="center" android:text="2" android:textColor="@color/coin" android:textSize="13sp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tìm &quot;Tn Tool&quot;" />
+                <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Thường nằm trong mục &quot;Dịch vụ đã tải xuống&quot; hoặc &quot;Ứng dụng đã cài&quot;, tùy hãng máy." />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bước 3 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:orientation="horizontal">
+            <TextView android:layout_width="28dp" android:layout_height="28dp" android:background="@drawable/bg_step_number" android:fontFamily="@font/bvp_bold" android:gravity="center" android:text="3" android:textColor="@color/coin" android:textSize="13sp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bật công tắc và xác nhận" />
+                <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Bật công tắc rồi chọn &quot;Cho phép&quot; ở hộp thoại cảnh báo. App cần quyền này để đọc nút Follow/Like." />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bước 4 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:orientation="horizontal">
+            <TextView android:layout_width="28dp" android:layout_height="28dp" android:background="@drawable/bg_step_number" android:fontFamily="@font/bvp_bold" android:gravity="center" android:text="4" android:textColor="@color/coin" android:textSize="13sp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView style="@style/F4F.Text.RowTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Quay lại Tn Tool" />
+                <TextView style="@style/F4F.Text.RowSub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Mở lại app, trạng thái sẽ tự chuyển sang &quot;Đã bật&quot; mà không cần làm gì thêm." />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="20dp" android:background="@color/hairline" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_guide_open_settings"
+            style="@style/Widget.F4F.Button.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Mở Cài đặt Trợ Năng" />
+
+        <TextView
+            android:id="@+id/btn_guide_later"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:fontFamily="@font/bvp_semibold"
+            android:gravity="center"
+            android:padding="14dp"
+            android:text="Để sau"
+            android:textColor="@color/text_sub"
+            android:textSize="14sp" />
+    </LinearLayout>
+</ScrollView>
